@@ -1,0 +1,15 @@
+{
+  "lights_SOFT": true,
+  "lights_DRAMA": true,
+  "lights_NEON": true,
+  "backdrop": true,
+  "SCATTER": true,
+  "scatter_instances": true,
+  "WAVE": true,
+  "wave_animates": true,
+  "source_preserved": true,
+  "panel_registered": true,
+  "brand_loaded": true,
+  "unregister": true,
+  "reregister": true
+}

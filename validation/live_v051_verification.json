@@ -1,0 +1,13 @@
+{
+  "version": [
+    0,
+    5,
+    1
+  ],
+  "enabled": true,
+  "bundled_overlay_packed": true,
+  "existing_slot_reused": true,
+  "camera_slots": 1,
+  "old_objects_and_transforms_preserved": true,
+  "original_file_not_overwritten": true
+}

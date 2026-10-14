@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 0),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 1),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -10,7 +10,7 @@ from mathutils import Vector
 from bpy.props import EnumProperty, FloatProperty, IntProperty, PointerProperty, FloatVectorProperty, BoolProperty, StringProperty
 from . import infinite_studio
 from . import presets
-from . import writing, top_library
+from . import writing, top_library, camera_overlay
 from bpy.types import Operator, Panel, PropertyGroup
 
 _previews = None
@@ -47,6 +47,14 @@ def material(name, color, emission=False):
     return m
 
 class BCGISettings(PropertyGroup):
+    overlay_camera: PointerProperty(name='Camera',type=bpy.types.Object,poll=camera_overlay.camera_poll)
+    overlay_image: PointerProperty(name='Custom Image',type=bpy.types.Image)
+    overlay_enabled: BoolProperty(name='Show Overlay',default=True,update=camera_overlay.update)
+    overlay_opacity: FloatProperty(name='Opacity',default=1,min=0,max=1,update=camera_overlay.update)
+    overlay_scale: FloatProperty(name='Scale',default=1,min=.01,max=20,update=camera_overlay.update)
+    overlay_offset: FloatVectorProperty(name='Position',size=2,default=(0,0),update=camera_overlay.update)
+    overlay_rotation: FloatProperty(name='Rotation',subtype='ANGLE',default=0,update=camera_overlay.update)
+    overlay_fit: EnumProperty(name='Fit',items=[('FIT','Fit',''),('CROP','Crop',''),('STRETCH','Stretch','')],default='FIT',update=camera_overlay.update)
     top_preset: EnumProperty(name='Preset Library',items=top_library.choices)
     writing_style: EnumProperty(name='Writing Style',items=[('CHALK','Chalk',''),('PEN','Pen / Ink','')],update=writing.style_changed)
     writing_target: PointerProperty(type=bpy.types.Object)
@@ -236,8 +244,9 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.5.0 · Build 20261014')
+        layout.label(text='Version 0.5.1 · Build 20261014')
         layout.operator('bcgi.top_library',text='Open Top Preset Library')
+        camera_overlay.draw(layout,p)
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
         box.operator('bcgi.infinite_studio')
         box.prop(p,'infinity_enabled'); box.prop(p,'follow_camera')
@@ -284,6 +293,7 @@ class BCGI_PT_panel(Panel):
 
 classes=(BCGISettings,BCGI_OT_lights,BCGI_OT_backdrop,BCGI_OT_effect,infinite_studio.BCGI_OT_infinite_studio,infinite_studio.BCGI_OT_center_glow,infinite_studio.BCGI_OT_center_studio,infinite_studio.BCGI_OT_center_scene,infinite_studio.BCGI_OT_load_logo,infinite_studio.BCGI_OT_load_font,infinite_studio.BCGI_OT_character_lights,presets.BCGI_OT_apply_preset,presets.BCGI_OT_keyframe_fx,presets.BCGI_OT_install_library,BCGI_PT_panel)
 classes=classes+(writing.BCGI_OT_writing,writing.BCGI_OT_animate_writing,writing.BCGI_OT_sample_writing,top_library.BCGI_OT_top_library,top_library.BCGI_OT_top_apply,top_library.BCGI_OT_top_pick)
+classes=classes+camera_overlay.classes
 def register():
     global _previews
     for cls in classes: bpy.utils.register_class(cls)

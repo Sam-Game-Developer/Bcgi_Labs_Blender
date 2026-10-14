@@ -1,14 +1,35 @@
 # BCGI LABS for Blender
 
-**v0.5.0 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.5.1 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.5.0_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.5.1_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
+
+## Camera overlay
+
+The user's BCGI portrait overlay PNG is bundled in the ZIP. Under **Camera
+Overlay**, click **Add / Update Camera Overlay** to add it to the scene camera.
+Choose another camera in the Camera field if needed. **Choose Custom PNG / Image**
+replaces the guide; **Use Built-in Overlay** restores the bundled PNG.
+
+Controls include visibility, opacity, scale, position, rotation and Fit/Crop/Stretch.
+Images are packed into the saved blend, so their original disk path is not needed
+on another PC. Repeated application reuses the BCGI slot and preserves unrelated
+camera background images. The existing legacy BCGI overlay slot is adopted.
+
+This uses Blender's native foreground camera background image: it is a
+**camera-view guide only, excluded from final renders**. Use camera view and
+enable viewport overlays to see it. Camera motion retains the guide in camera
+space. The bundled layout is designed for portrait 1080 x 1920 framing.
+
+Fresh-camera creation, PNG replacement/reset, control read-back, duplicate
+prevention and save/reopen passed in Blender 5.2.2 LTS. Another physical PC has
+not been tested.
 
 ## Infinity studio
 
@@ -60,7 +81,7 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
-## Grid, shape and scene controls in v0.5.0
+## Grid, shape and scene controls in v0.5.1
 
 - **Studio Floor** can be disabled independently. The procedural sky/cove stay
   active, while BCGI floor, grid and floor branding hide. Add your own road or
@@ -174,7 +195,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.5.0 add-on, including camera follow, grid and packed font settings.
+the installed v0.5.1 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text

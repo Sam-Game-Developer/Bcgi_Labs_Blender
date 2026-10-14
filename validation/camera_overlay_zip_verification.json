@@ -1,0 +1,14 @@
+{
+  "version": "0.5.1",
+  "fresh_camera": "PASS",
+  "bundled_png_packed": "PASS",
+  "repeat_apply_no_duplicates": "PASS",
+  "custom_png_replace": "PASS",
+  "builtin_reset": "PASS",
+  "controls_readback": "PASS",
+  "unrelated_guide_preserved": "PASS",
+  "save_reopen": "PASS",
+  "another_pc": "NOT_RUN",
+  "camera_overlay_final_render": "Excluded by design: native camera-view guide",
+  "isolated_zip_install_directory": "PASS"
+}

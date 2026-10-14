@@ -3,7 +3,7 @@
   "studio_preset_passes": 34,
   "native_asset_import_live": "PASS",
   "live_install": "PASS",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "original_scene_transforms_preserved": "PASS",
   "cold_restart": "NOT_RUN",
   "literal_mouse_drag_drop": "NOT_RUN",
@@ -21,5 +21,11 @@
   "top_thumbnail_library": "PASS",
   "new_asset_literal_drag_drop": "NOT_RUN",
   "camera_overlay": "PASS",
-  "camera_overlay_another_pc": "NOT_RUN"
+  "camera_overlay_another_pc": "NOT_RUN",
+  "writing_material_picker": "PASS",
+  "persistent_shelf_draw": "PASS",
+  "shelf_simulated_events": "PASS",
+  "shelf_literal_mouse_drag": "NOT_RUN",
+  "shelf_cold_restart": "NOT_RUN",
+  "new_reference_effects": "PLANNED"
 }

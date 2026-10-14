@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 1),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 2),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -10,7 +10,7 @@ from mathutils import Vector
 from bpy.props import EnumProperty, FloatProperty, IntProperty, PointerProperty, FloatVectorProperty, BoolProperty, StringProperty
 from . import infinite_studio
 from . import presets
-from . import writing, top_library, camera_overlay
+from . import writing, top_library, camera_overlay, shelf
 from bpy.types import Operator, Panel, PropertyGroup
 
 _previews = None
@@ -47,6 +47,9 @@ def material(name, color, emission=False):
     return m
 
 class BCGISettings(PropertyGroup):
+    shelf_dock: EnumProperty(name='Library Placement',items=[('TOP','Top',''),('BOTTOM','Bottom',''),('RIGHT','Right',''),('FLOAT','Floating','')],default='TOP')
+    shelf_x: FloatProperty(default=24)
+    shelf_y: FloatProperty(default=80)
     overlay_camera: PointerProperty(name='Camera',type=bpy.types.Object,poll=camera_overlay.camera_poll)
     overlay_image: PointerProperty(name='Custom Image',type=bpy.types.Image)
     overlay_enabled: BoolProperty(name='Show Overlay',default=True,update=camera_overlay.update)
@@ -57,7 +60,8 @@ class BCGISettings(PropertyGroup):
     overlay_fit: EnumProperty(name='Fit',items=[('FIT','Fit',''),('CROP','Crop',''),('STRETCH','Stretch','')],default='FIT',update=camera_overlay.update)
     top_preset: EnumProperty(name='Preset Library',items=top_library.choices)
     writing_style: EnumProperty(name='Writing Style',items=[('CHALK','Chalk',''),('PEN','Pen / Ink','')],update=writing.style_changed)
-    writing_target: PointerProperty(type=bpy.types.Object)
+    writing_target: PointerProperty(type=bpy.types.Object,update=writing.target_changed)
+    writing_material: PointerProperty(name='Stroke Material',type=bpy.types.Material,update=writing.material_changed)
     writing_width: FloatProperty(name='Stroke Width',default=.015,min=.001,max=1,update=writing.controls)
     writing_roughness: FloatProperty(name='Stroke Roughness',default=.4,min=0,max=1,update=writing.controls)
     writing_color: FloatVectorProperty(name='Stroke Color',subtype='COLOR',size=3,min=0,max=1,default=(.95,.95,.95),update=writing.controls)
@@ -244,7 +248,7 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.5.1 · Build 20261014')
+        layout.label(text='Version 0.5.2 · Build 20261014')
         layout.operator('bcgi.top_library',text='Open Top Preset Library')
         camera_overlay.draw(layout,p)
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
@@ -284,6 +288,8 @@ class BCGI_PT_panel(Panel):
         box=layout.box(); box.label(text='Writing / Drawing Reveal',icon='CURVE_BEZCURVE')
         box.prop(p,'writing_style'); box.operator('bcgi.sample_writing')
         box.operator('bcgi.apply_writing'); box.prop(p,'writing_target')
+        box.template_ID(p,'writing_material')
+        box.operator('bcgi.default_writing_material')
         for prop in ('writing_color','writing_width','writing_roughness','writing_start','writing_duration'): box.prop(p,prop)
         box.operator('bcgi.animate_writing')
         box.label(text='Animate Progress 0 → 1 in Modifiers')
@@ -294,6 +300,8 @@ class BCGI_PT_panel(Panel):
 classes=(BCGISettings,BCGI_OT_lights,BCGI_OT_backdrop,BCGI_OT_effect,infinite_studio.BCGI_OT_infinite_studio,infinite_studio.BCGI_OT_center_glow,infinite_studio.BCGI_OT_center_studio,infinite_studio.BCGI_OT_center_scene,infinite_studio.BCGI_OT_load_logo,infinite_studio.BCGI_OT_load_font,infinite_studio.BCGI_OT_character_lights,presets.BCGI_OT_apply_preset,presets.BCGI_OT_keyframe_fx,presets.BCGI_OT_install_library,BCGI_PT_panel)
 classes=classes+(writing.BCGI_OT_writing,writing.BCGI_OT_animate_writing,writing.BCGI_OT_sample_writing,top_library.BCGI_OT_top_library,top_library.BCGI_OT_top_apply,top_library.BCGI_OT_top_pick)
 classes=classes+camera_overlay.classes
+classes=classes+(writing.BCGI_OT_default_writing_material,)
+classes=classes+shelf.classes
 def register():
     global _previews
     for cls in classes: bpy.utils.register_class(cls)
@@ -312,6 +320,7 @@ def register():
 
 def unregister():
     global _previews
+    shelf.stop_all()
     bpy.types.VIEW3D_HT_header.remove(top_library.header)
     top_library._icons=None
     infinite_studio.restore_overlays()

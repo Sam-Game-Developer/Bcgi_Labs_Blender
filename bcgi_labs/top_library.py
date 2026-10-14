@@ -32,11 +32,15 @@ class BCGI_OT_top_pick(bpy.types.Operator):
 
 class BCGI_OT_top_library(bpy.types.Operator):
     bl_idname='bcgi.top_library'; bl_label='BCGI LABS Preset Library'
-    def invoke(self,context,event): return context.window_manager.invoke_popup(self,width=850)
+    def invoke(self,context,event):
+        bpy.ops.bcgi.shelf('INVOKE_DEFAULT')
+        return {'FINISHED'}
     def execute(self,context): return {'FINISHED'}
     def draw(self,context):
         layout=self.layout; p=context.scene.bcgi_labs
-        layout.label(text='BCGI LABS · Click a preset to apply it to the active object')
+        row=layout.row(align=True)
+        if _icons and 'brand' in _icons: row.template_icon(icon_value=_icons['brand'].icon_id,scale=2)
+        row.label(text='BCGI LABS · Click a preset to apply it to the active object')
         for start in (0,5):
             row=layout.row()
             for kind in IDS[start:start+5]:
@@ -47,4 +51,7 @@ class BCGI_OT_top_library(bpy.types.Operator):
         row=layout.row(); row.operator('bcgi.top_apply'); row.operator('bcgi.sample_writing'); row.operator('bcgi.animate_writing')
         layout.label(text='Mesh FX: select a mesh · Writing: select a curve · Controls: BCGI LABS sidebar / Modifiers')
 
-def header(self,context): self.layout.operator('bcgi.top_library',text='BCGI LABS',icon='ASSET_MANAGER')
+def header(self,context):
+    if _icons and 'brand' in _icons:
+        self.layout.operator('bcgi.top_library',text='BCGI LABS',icon_value=_icons['brand'].icon_id)
+    else: self.layout.operator('bcgi.top_library',text='BCGI LABS',icon='ASSET_MANAGER')

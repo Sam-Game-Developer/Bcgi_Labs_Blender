@@ -1,14 +1,44 @@
 # BCGI LABS for Blender
 
-**v0.5.1 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.5.2 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.5.1_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.5.2_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
+
+## Persistent library shelf and stroke materials
+
+Click **BCGI LABS** in a 3D View header or **Open Top Preset Library** in the
+sidebar. The library now stays open when clicking elsewhere. It initially docks
+below the viewport header. **Dock / Top**, **Bottom**, **Right** and **Float**
+choose placement. Drag the title bar, or click **Move** then drag inside the
+shelf. The panel stays within the visible viewport and avoids native sidebars.
+**− / +** minimizes/restores it; **×** closes it; **Reset** restores the top
+position. Arrow buttons or the wheel over the shelf page through the presets.
+
+Placement is stored in the scene; save the blend to retain it. Reopen the shelf
+with the header button after loading a file. This is viewport-edge attachment,
+not a separate native Blender editor. The custom surface has rounded corners,
+soft transparency and highlighted controls; it does not refract/blur the scene.
+Full controls remain in the native sidebar and Modifiers tab.
+
+The supplied BCGI LABS robot logo is bundled and shown in the shelf, header and
+sidebar. Under **Writing / Drawing Reveal**, **Stroke Material** now selects
+and replaces the writing modifier's material. **Use Built-in Chalk / Pen Material**
+restores the procedural stroke material. The Stroke Color control updates BCGI
+stroke materials; user-supplied shaders remain untouched and are edited through
+Blender's Material Properties / Shader Editor.
+
+Fresh-file material selection, custom shader preservation, style switching and
+save/reopen passed. Live shelf drawing was inspected; placement, minimize,
+reset, close/reopen and simulated drag/click event paths passed. Literal manual
+mouse dragging, cold restart and other-PC testing remain unverified. The five
+new effect categories in the design document remain planned, not shipped in
+this UI/material update.
 
 ## Camera overlay
 
@@ -81,7 +111,7 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
-## Grid, shape and scene controls in v0.5.1
+## Grid, shape and scene controls in v0.5.2
 
 - **Studio Floor** can be disabled independently. The procedural sky/cove stay
   active, while BCGI floor, grid and floor branding hide. Add your own road or
@@ -109,8 +139,8 @@ evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
 ## Writing, ring highlights and upper library
 
-Click **BCGI LABS** at the left of a 3D View header to open the horizontal
-thumbnail gallery. A thumbnail button applies the preset to the active object.
+Click **BCGI LABS** at the left of a 3D View header to open the persistent horizontal
+thumbnail shelf. A thumbnail button applies the preset to the active object.
 Mesh effects require a mesh; writing effects require a curve. The sidebar retains
 full controls and also has **Open Top Preset Library**.
 
@@ -195,7 +225,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.5.1 add-on, including camera follow, grid and packed font settings.
+the installed v0.5.2 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text

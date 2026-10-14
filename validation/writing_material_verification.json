@@ -1,0 +1,12 @@
+{
+  "version": "0.5.2",
+  "builtin_material_picker": "PASS",
+  "custom_material_replace": "PASS",
+  "custom_shader_not_overwritten": "PASS",
+  "material_without_nodes": "PASS",
+  "repeat_apply_reuses_modifier": "PASS",
+  "builtin_reset": "PASS",
+  "style_switch": "PASS",
+  "save_reopen_material": "PASS",
+  "shelf_bounds": "PASS"
+}

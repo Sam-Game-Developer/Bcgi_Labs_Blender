@@ -1,0 +1,14 @@
+{
+  "TOP_bounds": true,
+  "BOTTOM_bounds": true,
+  "RIGHT_bounds": true,
+  "FLOAT_bounds": true,
+  "RESET_bounds": true,
+  "minimize_restore": true,
+  "simulated_move_events": true,
+  "outside_click_keeps_open": true,
+  "offscreen_clamp": true,
+  "repeat_open_no_duplicate": true,
+  "close_cleanup": true,
+  "reopen": true
+}

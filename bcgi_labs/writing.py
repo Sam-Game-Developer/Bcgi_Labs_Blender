@@ -5,6 +5,7 @@ from .presets import set_control,control_path
 
 def stroke_material(style,color):
     m=bpy.data.materials.new('BCGI_'+style+'_Stroke'); m.use_nodes=True
+    m['bcgi_writing_material']=style
     tree=m.node_tree; tree.nodes.clear()
     shader=tree.nodes.new('ShaderNodeBsdfPrincipled'); shader.name='BCGI_StrokeColor'
     shader.inputs['Base Color'].default_value=(*color,1); shader.inputs['Roughness'].default_value=.95 if style=='CHALK' else .4
@@ -60,6 +61,7 @@ def latest(o):
     return next((m for m in reversed(list(o.modifiers)) if m.type=='NODES' and m.node_group and m.node_group.get('bcgi_writing')),None)
 
 def controls(self,context):
+    if context is None: return
     mod=latest(self.writing_target or context.active_object)
     if not mod: return
     for socket in mod.node_group.interface.items_tree:
@@ -69,9 +71,31 @@ def controls(self,context):
             if socket.name=='Stroke Material':
                 if hasattr(mod,'properties'): mat=getattr(mod.properties.inputs,socket.identifier).value
                 else: mat=mod[socket.identifier]
-                if mat: mat.node_tree.nodes['BCGI_StrokeColor'].inputs['Base Color'].default_value=(*self.writing_color,1)
+                # User-selected materials remain editable without rewriting their shaders.
+                shader=mat.node_tree.nodes.get('BCGI_StrokeColor') if mat and mat.node_tree else None
+                if shader and (mat.get('bcgi_writing_material') or mat.name.startswith(('BCGI_CHALK_Stroke','BCGI_PEN_Stroke'))):
+                    shader.inputs['Base Color'].default_value=(*self.writing_color,1)
+
+def material_socket(mod):
+    return next((s for s in mod.node_group.interface.items_tree if s.item_type=='SOCKET' and s.in_out=='INPUT' and s.name=='Stroke Material'),None)
+
+def material_changed(self,context):
+    if context is None or not self.writing_material: return
+    mod=latest(self.writing_target or context.active_object)
+    if mod:
+        socket=material_socket(mod)
+        if socket: set_control(mod,socket.identifier,self.writing_material)
+
+def target_changed(self,context):
+    if context is None: return
+    mod=latest(self.writing_target)
+    if mod:
+        socket=material_socket(mod)
+        if socket:
+            self.writing_material=getattr(mod.properties.inputs,socket.identifier).value if hasattr(mod,'properties') else mod[socket.identifier]
 
 def style_changed(self,context):
+    self.writing_material=None
     self.writing_color=(.95,.95,.95) if self.writing_style=='CHALK' else (.015,.015,.015)
     self.writing_roughness=.4 if self.writing_style=='CHALK' else .03
 
@@ -84,9 +108,17 @@ class BCGI_OT_writing(bpy.types.Operator):
         g=build(p.writing_style); mod=latest(o) or o.modifiers.new(g.name,'NODES'); mod.node_group=g
         for s in g.interface.items_tree:
             if s.item_type=='SOCKET' and s.in_out=='INPUT' and s.socket_type!='NodeSocketGeometry':
-                value=s.default_value.copy() if s.name=='Stroke Material' else s.default_value
+                value=(p.writing_material or s.default_value.copy()) if s.name=='Stroke Material' else s.default_value
                 set_control(mod,s.identifier,value)
-        p.writing_target=o; controls(p,context)
+        p.writing_target=o; target_changed(p,context); controls(p,context)
+        return {'FINISHED'}
+
+class BCGI_OT_default_writing_material(bpy.types.Operator):
+    bl_idname='bcgi.default_writing_material'; bl_label='Use Built-in Chalk / Pen Material'; bl_options={'REGISTER','UNDO'}
+    def execute(self,context):
+        p=context.scene.bcgi_labs; mod=latest(p.writing_target or context.active_object)
+        style=mod.node_group.get('bcgi_writing') if mod else p.writing_style
+        p.writing_material=stroke_material(style,p.writing_color)
         return {'FINISHED'}
 
 class BCGI_OT_animate_writing(bpy.types.Operator):

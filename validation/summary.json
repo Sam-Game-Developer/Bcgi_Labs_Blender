@@ -9,5 +9,7 @@
   "literal_mouse_drag_drop": "NOT_RUN",
   "other_blender_versions": "NOT_RUN",
   "gradient_seam": "PASS",
-  "camera_movement_gradient": "PASS"
+  "camera_movement_gradient": "PASS",
+  "fresh_file": "PASS",
+  "saved_file_separate_process_reopen": "PASS"
 }

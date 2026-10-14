@@ -1,0 +1,18 @@
+{
+  "installed_addon_version": [
+    0,
+    3,
+    2
+  ],
+  "factory_startup_scene": true,
+  "fresh_studio_creation": true,
+  "existing_objects_preserved": true,
+  "camera_gradient_and_sky": true,
+  "grid_controls": true,
+  "text_branding": true,
+  "camera_follow": true,
+  "infinity_toggle": true,
+  "repeat_no_duplicates": true,
+  "render_written": true,
+  "saved_fresh_file": true
+}

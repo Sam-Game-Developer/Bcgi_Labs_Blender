@@ -98,13 +98,17 @@ and X-ray. Live installation and native asset import passed.
 
 The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
-cold restart, another PC and other Blender releases have not been tested.
+another PC and other Blender releases have not been tested. A factory-startup
+fresh file and its save/reopen in a separate Blender process were verified using
+the installed v0.3.2 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text
 blender --background --factory-startup --python test_bcgi.py
 blender --background --factory-startup --python test_infinite_studio.py
 blender --background --factory-startup --python test_gradient_seam.py
+blender --background --factory-startup --python verify_fresh_file.py
+blender --background --factory-startup --python verify_fresh_reopen.py
 ```
 
 Tests create disposable scenes and render outputs. Source: `bcgi_labs/`.

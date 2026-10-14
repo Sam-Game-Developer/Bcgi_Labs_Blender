@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 2),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 3),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -66,7 +66,16 @@ class BCGISettings(PropertyGroup):
     writing_roughness: FloatProperty(name='Stroke Roughness',default=.4,min=0,max=1,update=writing.controls)
     writing_color: FloatVectorProperty(name='Stroke Color',subtype='COLOR',size=3,min=0,max=1,default=(.95,.95,.95),update=writing.controls)
     writing_start: IntProperty(name='Start Frame',default=1,min=0)
-    writing_duration: IntProperty(name='Duration',default=72,min=1,max=10000)
+    writing_duration: IntProperty(name='Draw Duration (Frames)',default=72,min=1,max=10000)
+    writing_speed: FloatProperty(name='Speed Multiplier',default=1,min=.05,max=20)
+    writing_pause: IntProperty(name='Pause Between Strokes',default=0,min=0,max=1000)
+    writing_timing: EnumProperty(name='Stroke Timing',items=[('EQUAL','Equal Time','Each curve spline gets equal draw time'),('LENGTH','By Stroke Length','Longer splines get more time')],default='EQUAL')
+    writing_progress: FloatProperty(name='Progress',default=1,min=0,max=1,subtype='FACTOR',update=writing.progress_changed)
+    writing_text: StringProperty(name='Text',default='BCGI LABS')
+    writing_text_size: FloatProperty(name='Text Size',default=1,min=.01,max=100)
+    writing_source: PointerProperty(name='Editable Text Source',type=bpy.types.Object)
+    writing_font: PointerProperty(name='Writing Font',type=bpy.types.VectorFont)
+    writing_windows_font: EnumProperty(name='Windows Font',items=writing.writing_fonts,update=writing.font_changed)
     floor_enabled: BoolProperty(name='Studio Floor',default=True,update=infinite_studio.update)
     glow_shape: EnumProperty(name='Glow Shape',items=[('CIRCLE','Circle',''),('OVAL','Oval',''),('SQUARE','Square',''),('ROUNDED','Rounded Square','')],update=infinite_studio.update)
     glow_feather: FloatProperty(name='Glow Feather',default=1,min=.01,max=1,update=infinite_studio.update)
@@ -248,7 +257,7 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.5.2 · Build 20261014')
+        layout.label(text='Version 0.5.3 · Build 20261014')
         layout.operator('bcgi.top_library',text='Open Top Preset Library')
         camera_overlay.draw(layout,p)
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
@@ -286,12 +295,18 @@ class BCGI_PT_panel(Panel):
         box.operator('bcgi.effect',text='Add Scatter / Spark Field').kind='SCATTER'
         box.prop(p,'wave'); box.operator('bcgi.effect',text='Add Animated Wave').kind='WAVE'
         box=layout.box(); box.label(text='Writing / Drawing Reveal',icon='CURVE_BEZCURVE')
+        box.prop(p,'writing_text'); box.prop(p,'writing_text_size')
+        box.prop(p,'writing_windows_font'); box.prop(p,'writing_font'); box.operator('bcgi.writing_font')
+        box.operator('bcgi.text_writing'); box.prop(p,'writing_source')
+        box.label(text='Fonts reveal outlines; drawn curves reveal strokes')
         box.prop(p,'writing_style'); box.operator('bcgi.sample_writing')
         box.operator('bcgi.apply_writing'); box.prop(p,'writing_target')
         box.template_ID(p,'writing_material')
         box.operator('bcgi.default_writing_material')
         for prop in ('writing_color','writing_width','writing_roughness','writing_start','writing_duration'): box.prop(p,prop)
-        box.operator('bcgi.animate_writing')
+        for prop in ('writing_speed','writing_pause','writing_timing'): box.prop(p,prop)
+        box.operator('bcgi.animate_writing',text='Apply / Update Writing Timing')
+        box.prop(p,'writing_progress'); box.operator('bcgi.keyframe_writing')
         box.label(text='Animate Progress 0 → 1 in Modifiers')
         layout.label(text='FX controls: Modifiers tab',icon='MODIFIER')
         layout.label(text='Wave needs a subdivided mesh')
@@ -302,6 +317,7 @@ classes=classes+(writing.BCGI_OT_writing,writing.BCGI_OT_animate_writing,writing
 classes=classes+camera_overlay.classes
 classes=classes+(writing.BCGI_OT_default_writing_material,)
 classes=classes+shelf.classes
+classes=classes+(writing.BCGI_OT_writing_font,writing.BCGI_OT_text_writing,writing.BCGI_OT_keyframe_writing)
 def register():
     global _previews
     for cls in classes: bpy.utils.register_class(cls)

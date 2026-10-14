@@ -1,5 +1,7 @@
 """Editable curve strokes with sequential chalk/ink write-on animation."""
-import bpy,math
+import bpy,math,os
+from bpy.props import StringProperty
+from bpy_extras.io_utils import ImportHelper
 from mathutils import Vector
 from .presets import set_control,control_path
 
@@ -94,6 +96,104 @@ def target_changed(self,context):
         if socket:
             self.writing_material=getattr(mod.properties.inputs,socket.identifier).value if hasattr(mod,'properties') else mod[socket.identifier]
 
+def progress_changed(self,context):
+    if context is None: return
+    mod=latest(self.writing_target or context.active_object)
+    if mod:
+        socket=next(s for s in mod.node_group.interface.items_tree if s.name=='Progress' and s.in_out=='INPUT')
+        set_control(mod,socket.identifier,self.writing_progress)
+
+def writing_fonts(self,context):
+    from .infinite_studio import windows_fonts
+    return [('DEFAULT','Windows Default / Segoe UI','Falls back to Blender built-in if unavailable')]+windows_fonts(self,context)
+
+def font_changed(self,context):
+    path=self.writing_windows_font
+    if path=='DEFAULT': path=os.path.join(os.environ.get('WINDIR','C:/Windows'),'Fonts','segoeui.ttf')
+    if path=='BUILTIN' or not os.path.isfile(path): self.writing_font=None
+    else:
+        font=bpy.data.fonts.load(path,check_existing=True); font.pack(); self.writing_font=font
+
+class BCGI_OT_writing_font(bpy.types.Operator,ImportHelper):
+    bl_idname='bcgi.writing_font'; bl_label='Load Writing Font'; bl_options={'REGISTER','UNDO'}
+    filter_glob: StringProperty(default='*.ttf;*.otf',options={'HIDDEN'})
+    def execute(self,context):
+        try:
+            font=bpy.data.fonts.load(self.filepath,check_existing=True); font.pack()
+            context.scene.bcgi_labs.writing_font=font
+        except (RuntimeError,OSError) as error:
+            self.report({'ERROR'},str(error)); return {'CANCELLED'}
+        return {'FINISHED'}
+
+class BCGI_OT_text_writing(bpy.types.Operator):
+    bl_idname='bcgi.text_writing'; bl_label='Create / Update Writing Text'; bl_options={'REGISTER','UNDO'}
+    @classmethod
+    def poll(cls,context): return context.mode=='OBJECT'
+    def execute(self,context):
+        p=context.scene.bcgi_labs
+        if not p.writing_text.strip():
+            self.report({'ERROR'},'Enter some text first'); return {'CANCELLED'}
+        source=p.writing_source
+        if not source or source.type!='FONT' or not source.get('bcgi_writing_source'):
+            data=bpy.data.curves.new('BCGI_Editable_Text','FONT')
+            source=bpy.data.objects.new('BCGI_Writing_Text_Source',data)
+            context.scene.collection.objects.link(source); source.location=context.scene.cursor.location
+            source['bcgi_writing_source']=True; p.writing_source=source
+        data=source.data; data.body=p.writing_text; data.size=p.writing_text_size
+        if p.writing_font is None and p.writing_windows_font=='DEFAULT': font_changed(p,context)
+        data.font=p.writing_font or bpy.data.fonts.get('Bfont') or bpy.data.fonts[0]
+        data.extrude=0; data.bevel_depth=0; data.fill_mode='NONE'
+        scratch=bpy.data.objects.new('BCGI_Text_Conversion',data.copy())
+        context.scene.collection.objects.link(scratch); scratch.matrix_world=source.matrix_world
+        for selected in context.selected_objects: selected.select_set(False)
+        scratch.select_set(True); context.view_layer.objects.active=scratch
+        try:
+            bpy.ops.object.convert(target='CURVE')
+            converted=context.view_layer.objects.active
+            if converted.type!='CURVE' or not converted.data.splines:
+                raise RuntimeError('The selected font produced no outline curves')
+            target=source.get('bcgi_generated_curve')
+            if target and target.name in context.scene.objects and target.type=='CURVE':
+                old=target.data; target.data=converted.data
+                bpy.data.objects.remove(converted,do_unlink=True)
+                if old.users==0: bpy.data.curves.remove(old)
+            else:
+                target=converted; target.name='BCGI_Writing_Text'
+                source['bcgi_generated_curve']=target
+            target['bcgi_text_source']=source
+            target.data.dimensions='3D'; target.data.fill_mode='FULL'
+            source.hide_set(True); source.hide_render=True
+            target.select_set(True); context.view_layer.objects.active=target
+            bpy.ops.bcgi.apply_writing()
+            bpy.ops.bcgi.animate_writing()
+        except RuntimeError as error:
+            try:
+                if scratch.name in bpy.data.objects: bpy.data.objects.remove(scratch,do_unlink=True)
+            except ReferenceError: pass
+            self.report({'ERROR'},str(error)); return {'CANCELLED'}
+        self.report({'INFO'},'Font outlines converted to editable writing curves; timing applied')
+        return {'FINISHED'}
+
+def fcurve_collections(action):
+    if hasattr(action,'fcurves'): yield action.fcurves
+    else:
+        for layer in action.layers:
+            for strip in layer.strips:
+                for bag in getattr(strip,'channelbags',[]): yield bag.fcurves
+
+def timing_keys(p,o):
+    count=len(o.data.splines)
+    if not count: raise ValueError('The curve has no strokes')
+    lengths=[max(s.calc_length(resolution=16),.000001) for s in o.data.splines]
+    weights=lengths if p.writing_timing=='LENGTH' else [1]*count
+    total=sum(weights); draw=p.writing_duration/p.writing_speed
+    frame=float(p.writing_start); keys=[(frame,0.0)]
+    for i,weight in enumerate(weights):
+        frame+=draw*weight/total; progress=(i+1)/count; keys.append((frame,progress))
+        if i<count-1 and p.writing_pause:
+            frame+=p.writing_pause; keys.append((frame,progress))
+    return keys
+
 def style_changed(self,context):
     self.writing_material=None
     self.writing_color=(.95,.95,.95) if self.writing_style=='CHALK' else (.015,.015,.015)
@@ -128,9 +228,38 @@ class BCGI_OT_animate_writing(bpy.types.Operator):
     def execute(self,context):
         p=context.scene.bcgi_labs; o=p.writing_target or context.active_object; mod=latest(o)
         socket=next(s for s in mod.node_group.interface.items_tree if s.name=='Progress' and s.in_out=='INPUT')
-        for frame,value in [(p.writing_start,0),(p.writing_start+p.writing_duration,1)]:
-            set_control(mod,socket.identifier,value); o.keyframe_insert(data_path=control_path(mod,socket.identifier),frame=frame,group='BCGI Writing')
+        path=control_path(mod,socket.identifier)
+        if o.animation_data and any(d.data_path==path for d in o.animation_data.drivers):
+            self.report({'ERROR'},'Progress has a driver; remove it before applying timing'); return {'CANCELLED'}
+        try: keys=timing_keys(p,o)
+        except ValueError as error:
+            self.report({'ERROR'},str(error)); return {'CANCELLED'}
+        if o.animation_data and o.animation_data.action:
+            if o.animation_data.action.users>1: o.animation_data.action=o.animation_data.action.copy()
+            for curves in fcurve_collections(o.animation_data.action):
+                for curve in list(curves):
+                    if curve.data_path==path: curves.remove(curve)
+        for frame,value in keys:
+            set_control(mod,socket.identifier,value); o.keyframe_insert(data_path=path,frame=frame,group='BCGI Writing')
+        for curves in fcurve_collections(o.animation_data.action):
+            for curve in curves:
+                if curve.data_path==path:
+                    for key in curve.keyframe_points: key.interpolation='LINEAR'
+        o['bcgi_writing_end_frame']=keys[-1][0]
         context.scene.frame_set(p.writing_start)
+        p.writing_progress=0
+        self.report({'INFO'},'Writing finishes at frame '+str(round(keys[-1][0],2)))
+        return {'FINISHED'}
+
+class BCGI_OT_keyframe_writing(bpy.types.Operator):
+    bl_idname='bcgi.keyframe_writing'; bl_label='Keyframe Writing Progress'; bl_options={'REGISTER','UNDO'}
+    @classmethod
+    def poll(cls,context): return latest(context.scene.bcgi_labs.writing_target or context.active_object) is not None
+    def execute(self,context):
+        p=context.scene.bcgi_labs; o=p.writing_target or context.active_object; mod=latest(o)
+        socket=next(s for s in mod.node_group.interface.items_tree if s.name=='Progress' and s.in_out=='INPUT')
+        set_control(mod,socket.identifier,p.writing_progress)
+        o.keyframe_insert(data_path=control_path(mod,socket.identifier),frame=context.scene.frame_current,group='BCGI Writing')
         return {'FINISHED'}
 
 class BCGI_OT_sample_writing(bpy.types.Operator):

@@ -3,7 +3,7 @@
   "studio_preset_passes": 34,
   "native_asset_import_live": "PASS",
   "live_install": "PASS",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "original_scene_transforms_preserved": "PASS",
   "cold_restart": "NOT_RUN",
   "literal_mouse_drag_drop": "NOT_RUN",
@@ -27,5 +27,9 @@
   "shelf_simulated_events": "PASS",
   "shelf_literal_mouse_drag": "NOT_RUN",
   "shelf_cold_restart": "NOT_RUN",
-  "new_reference_effects": "PLANNED"
+  "new_reference_effects": "PLANNED",
+  "text_font_automatic_curve": "PASS",
+  "writing_speed_pause": "PASS",
+  "writing_timing_preserves_other_channels": "PASS",
+  "icon_card_appearance": "DESIGN_ONLY"
 }

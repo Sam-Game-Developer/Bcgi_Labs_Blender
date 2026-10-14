@@ -1,0 +1,17 @@
+{
+  "version": "0.5.3",
+  "automatic_text_curves": "PASS",
+  "windows_font_packed": "PASS",
+  "editable_source_preserved": "PASS",
+  "repeat_update_same_target": "PASS",
+  "target_transform_preserved": "PASS",
+  "speed_and_pause_keys": "PASS",
+  "linear_hold_during_pause": "PASS",
+  "old_progress_keys_replaced": "PASS",
+  "other_animation_preserved": "PASS",
+  "length_based_timing": "PASS",
+  "chalk_pen_materials": "PASS",
+  "evaluated_empty_to_full": "PASS",
+  "save_reopen": "PASS",
+  "outline_not_single_line": true
+}

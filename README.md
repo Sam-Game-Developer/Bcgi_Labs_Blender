@@ -1,14 +1,49 @@
 # BCGI LABS for Blender
 
-**v0.5.2 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.5.3 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.5.2_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.5.3_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
+
+## Text, fonts and writing timing
+
+Under **Writing / Drawing Reveal**, enter **Text**, select a Windows font or
+load a TTF/OTF using **Load Writing Font**, choose Chalk/Pen and click
+**Create / Update Writing Text**. The Windows default uses Segoe UI when
+available, with Blender's built-in font as fallback. A custom loaded font takes
+precedence; changing the Windows font picker selects a different font again.
+
+The operator retains a hidden editable FONT source and creates editable CURVE
+outlines with the writing modifier and animation. Repeating it updates the same
+generated object and keeps its transform. This is **font outline reveal**:
+ordinary fonts produce letter contours, not a single pen centerline. For a true
+single-line drawing, supply your own stroke curves and use Apply Writing to Curve.
+
+**Start Frame**, **Draw Duration (Frames)**, **Speed Multiplier**, **Pause Between
+Strokes** and **Stroke Timing** control the animation. Click **Apply / Update
+Writing Timing** after adjusting them. Total draw time is Duration / Speed;
+Pause adds that many frames between successive splines. Equal Time gives each
+spline equal drawing time; By Stroke Length gives longer splines more time.
+A stroke here means a curve spline/letter contour, not necessarily an entire
+character. Pauses use flat Progress segments and drawing uses linear interpolation.
+
+Timing updates replace only the writing modifier's Progress keyframes and retain
+other animation channels. **Progress** plus **Keyframe Writing Progress** supports
+manual animation. The panel Progress value is a manual input, while playback's
+evaluated Progress is visible on the modifier. Curve widths are still local units;
+font size and object scale affect the result. Selected fonts are packed into the
+saved blend; OS fonts are not bundled in the add-on ZIP/repository.
+
+Fresh-file generation, preserved text source/transform, Chalk/Pen assignment,
+speed/pause timing, linear holds, key replacement, preserved width animation,
+length-based timing, empty/full evaluated geometry and save/reopen passed in
+Blender 5.2.2 LTS on Windows. Icon-card appearance is a design proposal only;
+the installed shelf appearance remains unchanged in this release.
 
 ## Persistent library shelf and stroke materials
 
@@ -111,7 +146,7 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
-## Grid, shape and scene controls in v0.5.2
+## Grid, shape and scene controls in v0.5.3
 
 - **Studio Floor** can be disabled independently. The procedural sky/cove stay
   active, while BCGI floor, grid and floor branding hide. Add your own road or
@@ -152,7 +187,7 @@ Sample** to create the editable dollar-symbol paths. Set width, roughness,
 color, start frame and duration, then click **Animate Writing**. It inserts
 Progress=0 at Start Frame and Progress=1 at Start Frame + Duration.
 
-Each spline is revealed in data order with equal time per spline. Progress is
+Each spline is revealed in data order; choose equal time or length-based timing. Progress is
 also an animatable Geometry Nodes modifier input. Curve control points remain
 editable. Applying again updates the writing modifier rather than stacking
 curve-to-mesh conversions. Chalk uses granular transparency and width variation;
@@ -225,7 +260,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.5.2 add-on, including camera follow, grid and packed font settings.
+the installed v0.5.3 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text

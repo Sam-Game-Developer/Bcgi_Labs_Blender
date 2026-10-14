@@ -1,0 +1,12 @@
+{
+  "CHALK_write_on_animation": true,
+  "CHALK_source_paths_preserved": true,
+  "PEN_write_on_animation": true,
+  "PEN_source_paths_preserved": true,
+  "glow_ring_source_materials_preserved": true,
+  "glow_ring_render": true,
+  "glow_ring_keyframes": true,
+  "top_library_ten_presets": true,
+  "panel_header_icons": true,
+  "registration_lifecycle": true
+}

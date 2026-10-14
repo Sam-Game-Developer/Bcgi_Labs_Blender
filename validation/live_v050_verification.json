@@ -1,0 +1,12 @@
+{
+  "version": [
+    0,
+    5,
+    0
+  ],
+  "enabled": true,
+  "writing_assets": true,
+  "glow_ring_asset": true,
+  "top_library_ten_thumbnails": true,
+  "old_objects_and_transforms_preserved": true
+}

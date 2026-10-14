@@ -1,7 +1,7 @@
 """Modifier assets with animatable inputs; exports to a native Blender asset library."""
 import bpy, os
 import json
-KINDS=('WAVE','SCATTER','TWIST','PULSE','SCAN','GLOW','XRAY')
+KINDS=('WAVE','SCATTER','TWIST','PULSE','SCAN','GLOW','XRAY','GLOW_RING')
 
 def set_control(mod,identifier,value):
     if hasattr(mod,'properties'):
@@ -34,6 +34,7 @@ def enable_glow(scene):
     return True
 
 def build(kind):
+    if kind=='GLOW_RING': return build_ring()
     from . import group, node
     existing=next((g for g in bpy.data.node_groups if g.get('bcgi_preset')==kind and g.get('bcgi_schema')==1),None)
     if existing: return existing
@@ -122,6 +123,46 @@ def build(kind):
     for i,nd in enumerate(g.nodes): nd.location=((i%5)*230,(i//5)*-220)
     return g
 
+def build_ring():
+    from . import group
+    name='BCGI FX · Glow Ring Highlight'
+    existing=bpy.data.node_groups.get(name)
+    if existing: return existing
+    g,inp,out=group(name,[('Radius','NodeSocketFloat',1,.001,100),('Width','NodeSocketFloat',.025,.001,1),
+                         ('Arc Coverage','NodeSocketFloat',.8,.01,1),('Ring Count','NodeSocketInt',2,1,10),
+                         ('Spacing','NodeSocketFloat',.12,0,10),('Glow Strength','NodeSocketFloat',8,0,100),
+                         ('Rotation Speed','NodeSocketFloat',1,-10,10)])
+    for title,typ,default in [('Position','NodeSocketVector',(0,0,0)),('Rotation','NodeSocketVector',(0,0,0)),('Glow Color','NodeSocketColor',(1,1,1,1))]:
+        s=g.interface.new_socket(name=title,in_out='INPUT',socket_type=typ); s.default_value=default
+    def n(typ): return g.nodes.new(typ)
+    def link(a,b): g.links.new(a,b)
+    circle=n('GeometryNodeCurvePrimitiveCircle'); circle.inputs['Resolution'].default_value=96; link(inp.outputs['Radius'],circle.inputs['Radius'])
+    trim=n('GeometryNodeTrimCurve'); trim.mode='FACTOR'; link(circle.outputs['Curve'],trim.inputs['Curve']); link(inp.outputs['Arc Coverage'],trim.inputs['End'])
+    profile=n('GeometryNodeCurvePrimitiveCircle'); profile.inputs['Resolution'].default_value=12; link(inp.outputs['Width'],profile.inputs['Radius'])
+    mesh=n('GeometryNodeCurveToMesh'); mesh.inputs['Fill Caps'].default_value=True; link(trim.outputs[0],mesh.inputs['Curve']); link(profile.outputs[0],mesh.inputs['Profile Curve'])
+    geo=mesh.outputs[0]
+    for title,dtype,attribute in [('Glow Strength','FLOAT','bcgi_ring_strength'),('Glow Color','FLOAT_COLOR','bcgi_ring_color')]:
+        store=n('GeometryNodeStoreNamedAttribute'); store.data_type=dtype; store.domain='POINT'; store.inputs['Name'].default_value=attribute
+        link(geo,store.inputs['Geometry']); link(inp.outputs[title],store.inputs['Value']); geo=store.outputs[0]
+    material=bpy.data.materials.new('BCGI_Ring_Glow'); material.use_nodes=True; material.node_tree.nodes.clear()
+    mt=material.node_tree; emit=mt.nodes.new('ShaderNodeEmission'); output=mt.nodes.new('ShaderNodeOutputMaterial')
+    for name,socket,attribute in [('Glow Strength','Strength','bcgi_ring_strength'),('Glow Color','Color','bcgi_ring_color')]:
+        attr=mt.nodes.new('ShaderNodeAttribute'); attr.attribute_name=attribute
+        mt.links.new(attr.outputs['Color' if socket=='Color' else 'Fac'],emit.inputs[socket])
+    mt.links.new(emit.outputs[0],output.inputs['Surface'])
+    setter=n('GeometryNodeSetMaterial'); setter.inputs['Material'].default_value=material; link(geo,setter.inputs['Geometry'])
+    time=n('GeometryNodeInputSceneTime'); speed=n('ShaderNodeMath'); speed.operation='MULTIPLY'; link(time.outputs['Seconds'],speed.inputs[0]); link(inp.outputs['Rotation Speed'],speed.inputs[1])
+    spin=n('ShaderNodeCombineXYZ'); link(speed.outputs[0],spin.inputs['Z'])
+    rotate=n('GeometryNodeTransform'); link(setter.outputs[0],rotate.inputs['Geometry']); link(spin.outputs[0],rotate.inputs['Rotation'])
+    spacing=n('ShaderNodeCombineXYZ'); link(inp.outputs['Spacing'],spacing.inputs['Z'])
+    line=n('GeometryNodeMeshLine'); link(inp.outputs['Ring Count'],line.inputs['Count']); link(spacing.outputs[0],line.inputs['Offset'])
+    inst=n('GeometryNodeInstanceOnPoints'); link(line.outputs[0],inst.inputs['Points']); link(rotate.outputs[0],inst.inputs['Instance'])
+    transformed=n('GeometryNodeTransform'); link(inst.outputs[0],transformed.inputs['Geometry']); link(inp.outputs['Position'],transformed.inputs['Translation']); link(inp.outputs['Rotation'],transformed.inputs['Rotation'])
+    join=n('GeometryNodeJoinGeometry'); link(inp.outputs['Geometry'],join.inputs[0]); link(transformed.outputs[0],join.inputs[0]); link(join.outputs[0],out.inputs[0])
+    g['bcgi_preset']='GLOW_RING'; g.is_modifier=True; g.asset_mark(); g.asset_data.author='BCGI LABS'; g.asset_data.description='Animated glowing rings/arcs; source object materials stay intact.'
+    for i,node in enumerate(g.nodes): node.location=((i%5)*220,-(i//5)*210)
+    return g
+
 class BCGI_OT_apply_preset(bpy.types.Operator):
     bl_idname='bcgi.apply_preset'; bl_label='Apply Preset to Selected Mesh'; bl_options={'REGISTER','UNDO'}
     @classmethod
@@ -131,7 +172,18 @@ class BCGI_OT_apply_preset(bpy.types.Operator):
         mod=context.active_object.modifiers.new(g.name,'NODES'); mod.node_group=g
         for s in g.interface.items_tree:
             if s.item_type=='SOCKET' and s.in_out=='INPUT' and s.socket_type!='NodeSocketGeometry': set_control(mod,s.identifier,s.default_value)
-        if context.scene.bcgi_labs.fx_preset=='GLOW': enable_glow(context.scene)
+        if context.scene.bcgi_labs.fx_preset=='GLOW_RING':
+            o=context.active_object
+            bounds=[v for v in o.bound_box]
+            dimensions=[max(v[i] for v in bounds)-min(v[i] for v in bounds) for i in range(3)]
+            axis=max(range(3),key=lambda i:dimensions[i])
+            radius=max(dimensions[i] for i in range(3) if i!=axis)*.6
+            rotation=(0,1.57079632679,0) if axis==0 else (1.57079632679,0,0) if axis==1 else (0,0,0)
+            position=tuple((max(v[i] for v in bounds)+min(v[i] for v in bounds))/2 for i in range(3))
+            for s in g.interface.items_tree:
+                if s.item_type=='SOCKET' and s.in_out=='INPUT' and s.name in ('Radius','Position','Rotation','Width'):
+                    set_control(mod,s.identifier,{'Radius':max(radius,.01),'Position':position,'Rotation':rotation,'Width':max(radius*.035,.001)}[s.name])
+        if context.scene.bcgi_labs.fx_preset in ('GLOW','GLOW_RING'): enable_glow(context.scene)
         self.report({'INFO'},'Preset applied. Controls are in the Modifiers tab; hover a value and press I to keyframe.')
         return {'FINISHED'}
 
@@ -152,7 +204,8 @@ class BCGI_OT_install_library(bpy.types.Operator):
     bl_idname='bcgi.install_preset_library'; bl_label='Install / Refresh Asset Library'
     def execute(self,context):
         path=bpy.utils.user_resource('DATAFILES',path='bcgi_labs_assets',create=True)
-        bpy.data.libraries.write(os.path.join(path,'BCGI_LABS_FX.blend'),set(build(k) for k in KINDS),fake_user=True)
+        from .writing import build as writing_build
+        bpy.data.libraries.write(os.path.join(path,'BCGI_LABS_FX.blend'),set([build(k) for k in KINDS]+[writing_build('CHALK'),writing_build('PEN')]),fake_user=True)
         libs=context.preferences.filepaths.asset_libraries
         existing=next((lib for lib in libs if lib.name=='BCGI LABS'),None)
         if existing: existing.path=path

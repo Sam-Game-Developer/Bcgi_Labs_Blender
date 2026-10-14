@@ -3,7 +3,7 @@
   "studio_preset_passes": 34,
   "native_asset_import_live": "PASS",
   "live_install": "PASS",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "original_scene_transforms_preserved": "PASS",
   "cold_restart": "NOT_RUN",
   "literal_mouse_drag_drop": "NOT_RUN",
@@ -15,5 +15,9 @@
   "grid_shapes_floor": "PASS",
   "scene_center_relative_layout": "PASS",
   "viewport_grid_hide_restore_live": "PASS",
-  "viewport_grid_restore_after_reopen": "PASS"
+  "viewport_grid_restore_after_reopen": "PASS",
+  "writing_reveal": "PASS",
+  "glow_ring": "PASS",
+  "top_thumbnail_library": "PASS",
+  "new_asset_literal_drag_drop": "NOT_RUN"
 }

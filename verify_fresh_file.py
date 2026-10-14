@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parent
 addon_utils.enable('bcgi_labs',default_set=False)
 import bcgi_labs
 assert '/scripts/addons/bcgi_labs/' in bcgi_labs.__file__.replace('\\','/'),bcgi_labs.__file__
-assert bcgi_labs.bl_info['version']==(0,4,1)
+assert bcgi_labs.bl_info['version']==(0,5,0)
 scene=bpy.context.scene
 assert scene.bcgi_labs.studio_root is None
 original={o.name:o.matrix_world.copy() for o in scene.objects}

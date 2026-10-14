@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 4, 1),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 0),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -10,6 +10,7 @@ from mathutils import Vector
 from bpy.props import EnumProperty, FloatProperty, IntProperty, PointerProperty, FloatVectorProperty, BoolProperty, StringProperty
 from . import infinite_studio
 from . import presets
+from . import writing, top_library
 from bpy.types import Operator, Panel, PropertyGroup
 
 _previews = None
@@ -46,6 +47,14 @@ def material(name, color, emission=False):
     return m
 
 class BCGISettings(PropertyGroup):
+    top_preset: EnumProperty(name='Preset Library',items=top_library.choices)
+    writing_style: EnumProperty(name='Writing Style',items=[('CHALK','Chalk',''),('PEN','Pen / Ink','')],update=writing.style_changed)
+    writing_target: PointerProperty(type=bpy.types.Object)
+    writing_width: FloatProperty(name='Stroke Width',default=.015,min=.001,max=1,update=writing.controls)
+    writing_roughness: FloatProperty(name='Stroke Roughness',default=.4,min=0,max=1,update=writing.controls)
+    writing_color: FloatVectorProperty(name='Stroke Color',subtype='COLOR',size=3,min=0,max=1,default=(.95,.95,.95),update=writing.controls)
+    writing_start: IntProperty(name='Start Frame',default=1,min=0)
+    writing_duration: IntProperty(name='Duration',default=72,min=1,max=10000)
     floor_enabled: BoolProperty(name='Studio Floor',default=True,update=infinite_studio.update)
     glow_shape: EnumProperty(name='Glow Shape',items=[('CIRCLE','Circle',''),('OVAL','Oval',''),('SQUARE','Square',''),('ROUNDED','Rounded Square','')],update=infinite_studio.update)
     glow_feather: FloatProperty(name='Glow Feather',default=1,min=.01,max=1,update=infinite_studio.update)
@@ -80,7 +89,7 @@ class BCGISettings(PropertyGroup):
     brand_rotation: FloatProperty(name='Rotation',subtype='ANGLE',default=0,update=infinite_studio.update)
     brand_font: PointerProperty(type=bpy.types.VectorFont,update=infinite_studio.update)
     logo_image: PointerProperty(type=bpy.types.Image,update=infinite_studio.update)
-    fx_preset: EnumProperty(name='Preset',items=[(x,x.title(),'') for x in ('WAVE','SCATTER','TWIST','PULSE','SCAN','GLOW','XRAY')])
+    fx_preset: EnumProperty(name='Preset',items=[(x,x.replace('_',' ').title(),'') for x in ('WAVE','SCATTER','TWIST','PULSE','SCAN','GLOW','XRAY','GLOW_RING')])
     grid_enabled: BoolProperty(name='Floor Grid',default=False,update=infinite_studio.update)
     grid_color: FloatVectorProperty(name='Grid Color',subtype='COLOR',size=3,min=0,max=1,default=(.025,.10,.16),update=infinite_studio.update)
     grid_spacing: FloatProperty(name='Grid Box Size',default=1,min=.01,max=100,subtype='DISTANCE',update=infinite_studio.update)
@@ -227,7 +236,8 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.4.1 · Build 20261014')
+        layout.label(text='Version 0.5.0 · Build 20261014')
+        layout.operator('bcgi.top_library',text='Open Top Preset Library')
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
         box.operator('bcgi.infinite_studio')
         box.prop(p,'infinity_enabled'); box.prop(p,'follow_camera')
@@ -262,11 +272,18 @@ class BCGI_PT_panel(Panel):
         box.prop(p,'count'); box.prop(p,'seed'); box.prop(p,'scale')
         box.operator('bcgi.effect',text='Add Scatter / Spark Field').kind='SCATTER'
         box.prop(p,'wave'); box.operator('bcgi.effect',text='Add Animated Wave').kind='WAVE'
+        box=layout.box(); box.label(text='Writing / Drawing Reveal',icon='CURVE_BEZCURVE')
+        box.prop(p,'writing_style'); box.operator('bcgi.sample_writing')
+        box.operator('bcgi.apply_writing'); box.prop(p,'writing_target')
+        for prop in ('writing_color','writing_width','writing_roughness','writing_start','writing_duration'): box.prop(p,prop)
+        box.operator('bcgi.animate_writing')
+        box.label(text='Animate Progress 0 → 1 in Modifiers')
         layout.label(text='FX controls: Modifiers tab',icon='MODIFIER')
         layout.label(text='Wave needs a subdivided mesh')
         layout.label(text='Tools add separate BCGI collections')
 
 classes=(BCGISettings,BCGI_OT_lights,BCGI_OT_backdrop,BCGI_OT_effect,infinite_studio.BCGI_OT_infinite_studio,infinite_studio.BCGI_OT_center_glow,infinite_studio.BCGI_OT_center_studio,infinite_studio.BCGI_OT_center_scene,infinite_studio.BCGI_OT_load_logo,infinite_studio.BCGI_OT_load_font,infinite_studio.BCGI_OT_character_lights,presets.BCGI_OT_apply_preset,presets.BCGI_OT_keyframe_fx,presets.BCGI_OT_install_library,BCGI_PT_panel)
+classes=classes+(writing.BCGI_OT_writing,writing.BCGI_OT_animate_writing,writing.BCGI_OT_sample_writing,top_library.BCGI_OT_top_library,top_library.BCGI_OT_top_apply,top_library.BCGI_OT_top_pick)
 def register():
     global _previews
     for cls in classes: bpy.utils.register_class(cls)
@@ -274,11 +291,19 @@ def register():
     _previews=bpy.utils.previews.new()
     path=os.path.join(os.path.dirname(__file__),'assets','BCGI.png')
     if os.path.isfile(path): _previews.load('brand',path,'IMAGE')
+    top_library._icons=_previews
+    top_library._choices=[]
+    for name in top_library.IDS:
+        path=os.path.join(os.path.dirname(__file__),'assets','presets',name+'.png')
+        if os.path.isfile(path): _previews.load(name,path,'IMAGE')
+    bpy.types.VIEW3D_HT_header.prepend(top_library.header)
     if infinite_studio.camera_changed not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(infinite_studio.camera_changed)
 
 def unregister():
     global _previews
+    bpy.types.VIEW3D_HT_header.remove(top_library.header)
+    top_library._icons=None
     infinite_studio.restore_overlays()
     if infinite_studio.camera_changed in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.remove(infinite_studio.camera_changed)

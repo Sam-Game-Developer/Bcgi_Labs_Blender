@@ -113,10 +113,10 @@ for kind in ('SCAN','GLOW','XRAY'):
     checks['render_'+kind]=(root/('BCGI_FX_'+kind+'_preview.png')).exists()
     subject.modifiers.remove(subject.modifiers[-1])
 library_path=root/'asset_library'; library_path.mkdir(exist_ok=True)
-bpy.data.libraries.write(str(library_path/'BCGI_LABS_FX.blend'),set(presets.build(k) for k in presets.KINDS),fake_user=True)
+bpy.data.libraries.write(str(library_path/'BCGI_LABS_FX.blend'),set([presets.build(k) for k in presets.KINDS]+[bcgi_labs.writing.build('CHALK'),bcgi_labs.writing.build('PEN')]),fake_user=True)
 with bpy.data.libraries.load(str(library_path/'BCGI_LABS_FX.blend')) as (data_from,data_to):
-    assert len(data_from.node_groups)==7
-checks['seven_exported_assets']=True
+    assert len(data_from.node_groups)==10
+checks['ten_exported_assets']=True
 lib=bpy.context.preferences.filepaths.asset_libraries.new(name='BCGI Test',directory=str(library_path))
 try:
     status={'CANCELLED'}
@@ -130,6 +130,6 @@ try:
 except Exception as e:
     print('ASSET_IMPORT_CHECK',str(e))
     checks['asset_modifier_import']='NOT_RUN_BACKGROUND' if bpy.app.background else False
-(root/'verification_v0.4.0.json').write_text(json.dumps(checks,indent=2))
+(root/'verification_v0.5.0.json').write_text(json.dumps(checks,indent=2))
 print('BCGI_TEST',json.dumps(checks))
 assert all(v is True or v=='NOT_RUN_BACKGROUND' for v in checks.values()), checks

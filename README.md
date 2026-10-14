@@ -1,12 +1,12 @@
 # BCGI LABS for Blender
 
-**v0.4.1 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.5.0 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.4.1_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.5.0_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
 
@@ -60,7 +60,7 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
-## Grid, shape and scene controls in v0.4.1
+## Grid, shape and scene controls in v0.5.0
 
 - **Studio Floor** can be disabled independently. The procedural sky/cove stay
   active, while BCGI floor, grid and floor branding hide. Add your own road or
@@ -86,10 +86,58 @@ evaluate the studio's actual sky and lighting. Solid shading hides materials.
 ![Glowing world grid](docs/BCGI_World_Grid_Glow_preview.png)
 ![Rounded feather](docs/BCGI_Rounded_Feather_preview.png)
 
+## Writing, ring highlights and upper library
+
+Click **BCGI LABS** at the left of a 3D View header to open the horizontal
+thumbnail gallery. A thumbnail button applies the preset to the active object.
+Mesh effects require a mesh; writing effects require a curve. The sidebar retains
+full controls and also has **Open Top Preset Library**.
+
+### Chalk / pen write-on
+
+Select an editable Curve in Object Mode, choose Chalk or Pen under
+**Writing / Drawing Reveal**, and apply. Or click **Create Editable Writing
+Sample** to create the editable dollar-symbol paths. Set width, roughness,
+color, start frame and duration, then click **Animate Writing**. It inserts
+Progress=0 at Start Frame and Progress=1 at Start Frame + Duration.
+
+Each spline is revealed in data order with equal time per spline. Progress is
+also an animatable Geometry Nodes modifier input. Curve control points remain
+editable. Applying again updates the writing modifier rather than stacking
+curve-to-mesh conversions. Chalk uses granular transparency and width variation;
+Pen uses a solid ink stroke. Width is measured in curve-local units and acts as
+profile radius, so object scaling affects the result.
+
+![Chalk halfway](docs/BCGI_Writing_CHALK_25.png)
+![Chalk complete](docs/BCGI_Writing_CHALK_49.png)
+![Pen complete](docs/BCGI_Writing_PEN_49.png)
+
+This is stroke reveal, not an automatic hand/pen-character animation. Place or
+draw the curves on your board/paper surface. It does not infer handwritten
+centerlines from a raster logo or typed font; converted text/SVG paths reveal
+their contours. Hand movement can be animated separately.
+
+### Glow Ring Highlight
+
+Select a mesh and apply **Glow Ring**. The preset adds emissive rings/arcs while
+retaining the object's original mesh and material slots. Initial radius and
+orientation are fitted to its local bounds; adjust for irregular objects.
+Controls include Radius, Width, Arc Coverage, Ring Count, Spacing, Position,
+Rotation, Rotation Speed, Glow Strength and Glow Color. Numeric/vector controls
+can be keyframed. A Fog Glow compositor supplies the final-render halo.
+
+![Glow ring](docs/BCGI_Glow_Ring_preview.png)
+
+The library now includes ten assets: eight mesh effects and two writing effects.
+Write-on tests verified empty, partial and full geometry at start/middle/end;
+render previews, source preservation, material preservation, header thumbnails,
+registration lifecycle, fresh-file creation and save/reopen passed in Blender
+5.2.2. Literal mouse drag/drop of the new curve assets remains untested.
+
 ## Preset library
 
-Seven Geometry Nodes modifier assets: **Wave, Scatter, Twist, Pulse, Scan, Glow,
-X-ray**. Select a mesh and click **Apply Preset to Selected Mesh**. The modifier
+Eight mesh Geometry Nodes assets: **Wave, Scatter, Twist, Pulse, Scan, Glow,
+X-ray, Glow Ring** plus two **Chalk/Pen writing** curve assets. Select a mesh and click **Apply Preset to Selected Mesh**. The modifier
 is editable and preserves the underlying mesh.
 
 Click **Install / Refresh Asset Library**. In an Asset Browser choose **BCGI LABS**,
@@ -118,7 +166,7 @@ Motion retargeting, character creation and fire/smoke simulation are not include
 ## Verification
 
 Checks cover original tools, infinity toggling, parented-camera movement/yaw,
-linked lighting, Windows fonts, PNG size/tint, keyframes, seven presets and asset
+linked lighting, Windows fonts, PNG size/tint, keyframes, mesh/writing presets and asset
 export. Actual Cycles renders were inspected for the studio, grid, Scan, Glow
 and X-ray. Live installation and native asset import passed.
 
@@ -126,7 +174,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.4.1 add-on, including camera follow, grid and packed font settings.
+the installed v0.5.0 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text
@@ -137,6 +185,7 @@ blender --background --factory-startup --python verify_fresh_file.py
 blender --background --factory-startup --python verify_fresh_reopen.py
 blender --background --factory-startup --python test_grid_shapes.py
 blender --background --factory-startup --python test_scene_center.py
+blender --background --factory-startup --python test_writing_ring.py
 ```
 
 Tests create disposable scenes and render outputs. Source: `bcgi_labs/`.

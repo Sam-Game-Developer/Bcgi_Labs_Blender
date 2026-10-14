@@ -1,0 +1,6 @@
+{
+  "surface_sky_match": true,
+  "camera_movement_gradient_match": true,
+  "surface_sky_max_difference": 0.00784313678741455,
+  "camera_move_max_difference": 0.00784313678741455
+}

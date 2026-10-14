@@ -67,17 +67,24 @@ def update(self, context):
     world=bpy.data.worlds.get(root.get('studio_world',''))
     if world:
         world.node_tree.nodes['BCGI_Sky'].inputs['Color'].default_value=(*self.studio_color,1)
-        world.node_tree.nodes['BCGI_Sky'].inputs['Strength'].default_value=self.studio_brightness
+        world.node_tree.nodes['BCGI_Sky'].inputs['Strength'].default_value=self.studio_brightness*self.background_power
+        if world.node_tree.nodes.get('BCGI_SkyGradient'):
+            wn=world.node_tree.nodes
+            wn['BCGI_SkyGradient'].color_ramp.elements[0].color=(*self.glow_color,1)
+            wn['BCGI_SkyGradient'].color_ramp.elements[1].color=(*self.studio_color,1)
+            wn['BCGI_SkyCenter'].inputs[1].default_value=(.5+self.glow_x,.3+self.glow_height,0)
+            wn['BCGI_SkySpread'].inputs[1].default_value=(1/self.glow_spread,1/self.glow_spread,0)
         context.scene.world=world if self.infinity_enabled else self.original_world
     mat=bpy.data.materials.get(root.get('gradient_material',''))
     if mat:
         n=mat.node_tree.nodes
         n['BCGI_Gradient'].color_ramp.elements[0].color=(*self.glow_color,1)
         n['BCGI_Gradient'].color_ramp.elements[1].color=(*self.studio_color,1)
-        n['BCGI_GlowCenter'].inputs[1].default_value=(self.glow_x,0,self.glow_height)
-        n['BCGI_GlowSpread'].inputs[1].default_value=(1/self.glow_spread,0,1/self.glow_spread)
-        n['BCGI_Brightness'].inputs['Strength'].default_value=self.studio_brightness
+        n['BCGI_GlowCenter'].inputs[1].default_value=(.5+self.glow_x,.3+self.glow_height,0)
+        n['BCGI_GlowSpread'].inputs[1].default_value=(1/self.glow_spread,1/self.glow_spread,0)
+        n['BCGI_Brightness'].inputs['Strength'].default_value=self.studio_brightness*self.background_power
         n['BCGI_ShadowStrength'].inputs[0].default_value=self.shadow_strength
+        if n.get('BCGI_ContactShadowMix'): n['BCGI_ContactShadowMix'].inputs[0].default_value=self.shadow_strength
         n['BCGI_GridScale'].inputs[3].default_value=self.studio_size/self.grid_spacing
         for name in ('BCGI_GridLineX','BCGI_GridLineY'):
             n[name].inputs[1].default_value=min(.45,self.grid_width/(2*self.grid_spacing))
@@ -110,6 +117,61 @@ def update(self, context):
     if self.character_root:
         for o in self.character_root.children:
             if o.type=='LIGHT': o.data.energy=o.get('bcgi_character_power',1000)*self.character_power
+
+def rebuild_gradient(root,mat):
+    tree=mat.node_tree; tree.nodes.clear()
+    def node(typ,name,x,y):
+        n=tree.nodes.new(typ); n.name=name; n.label=name.replace('BCGI_',''); n.location=(x,y); return n
+    tex=node('ShaderNodeTexCoord','BCGI_LocalCoordinates',-800,100); tex.object=root
+    center=node('ShaderNodeVectorMath','BCGI_GlowCenter',-600,100); center.operation='SUBTRACT'
+    spread=node('ShaderNodeVectorMath','BCGI_GlowSpread',-400,100); spread.operation='MULTIPLY'
+    length=node('ShaderNodeVectorMath','BCGI_Distance',-200,100); length.operation='LENGTH'
+    ramp=node('ShaderNodeValToRGB','BCGI_Gradient',0,100)
+    ramp.color_ramp.interpolation='EASE'
+    ramp.color_ramp.elements[0].position=0
+    ramp.color_ramp.elements[1].position=1
+    emission=node('ShaderNodeEmission','BCGI_Brightness',300,150)
+    diffuse=node('ShaderNodeBsdfDiffuse','BCGI_GroundShadows',300,-50)
+    diffuse.inputs['Roughness'].default_value=1
+    mix=node('ShaderNodeMixShader','BCGI_ShadowStrength',550,100)
+    output=node('ShaderNodeOutputMaterial','BCGI_Output',800,100)
+    scale=node('ShaderNodeVectorMath','BCGI_GridScale',-600,-200); scale.operation='SCALE'
+    axes=node('ShaderNodeSeparateXYZ','BCGI_GridAxes',-400,-200)
+    local_axes=node('ShaderNodeSeparateXYZ','BCGI_LocalAxes',-600,-650)
+    floor=node('ShaderNodeMath','BCGI_FloorOnly',-400,-650); floor.operation='LESS_THAN'; floor.inputs[1].default_value=.0001
+    for suffix,axis in [('X','X'),('Y','Y')]:
+        wave=node('ShaderNodeMath','BCGI_GridRepeat'+suffix,-200,-200 if axis=='X' else -400)
+        wave.operation='PINGPONG'; wave.inputs[1].default_value=.5
+        line=node('ShaderNodeMath','BCGI_GridLine'+suffix,0,-200 if axis=='X' else -400); line.operation='LESS_THAN'
+        tree.links.new(axes.outputs[axis],wave.inputs[0]); tree.links.new(wave.outputs[0],line.inputs[0])
+    maximum=node('ShaderNodeMath','BCGI_GridLines',200,-350); maximum.operation='MAXIMUM'
+    floor_mask=node('ShaderNodeMath','BCGI_GridFloor',350,-350); floor_mask.operation='MULTIPLY'
+    opacity=node('ShaderNodeMath','BCGI_GridOpacity',500,-350); opacity.operation='MULTIPLY'
+    color=node('ShaderNodeMixRGB','BCGI_GridColor',700,-250)
+    for a,b in [(tex.outputs['Object'],scale.inputs[0]),(scale.outputs[0],axes.inputs[0]),
+                (tex.outputs['Object'],local_axes.inputs[0]),(local_axes.outputs['Z'],floor.inputs[0]),
+                (tree.nodes['BCGI_GridLineX'].outputs[0],maximum.inputs[0]),(tree.nodes['BCGI_GridLineY'].outputs[0],maximum.inputs[1]),
+                (maximum.outputs[0],floor_mask.inputs[0]),(floor.outputs[0],floor_mask.inputs[1]),
+                (floor_mask.outputs[0],opacity.inputs[0]),(opacity.outputs[0],color.inputs[0]),(ramp.outputs['Color'],color.inputs[1])]:
+        tree.links.new(a,b)
+    for a,b in [(tex.outputs['Window'],center.inputs[0]),(center.outputs[0],spread.inputs[0]),
+                (spread.outputs[0],length.inputs[0]),(length.outputs['Value'],ramp.inputs[0]),
+                (color.outputs[0],emission.inputs['Color']),(color.outputs[0],diffuse.inputs['Color']),
+                (emission.outputs[0],mix.inputs[1]),(diffuse.outputs[0],mix.inputs[2]),(mix.outputs[0],output.inputs['Surface'])]:
+        tree.links.new(a,b)
+    # One screen-space field for every camera-visible studio surface. Local AO
+    # adds contact shading without making floor and wall respond differently to lights.
+    ao=node('ShaderNodeAmbientOcclusion','BCGI_ContactAO',850,-400)
+    ao.inputs['Distance'].default_value=.5
+    shadow=node('ShaderNodeMixRGB','BCGI_ContactShadow',1050,-350); shadow.blend_type='MULTIPLY'; shadow.inputs[0].default_value=1
+    shadow_mix=node('ShaderNodeMixRGB','BCGI_ContactShadowMix',1250,-300)
+    for a,b in [(color.outputs[0],shadow.inputs[1]),(ao.outputs['AO'],shadow.inputs[2]),
+                (color.outputs[0],shadow_mix.inputs[1]),(shadow.outputs[0],shadow_mix.inputs[2]),
+                (shadow_mix.outputs[0],emission.inputs['Color'])]: tree.links.new(a,b)
+    ray=node('ShaderNodeLightPath','BCGI_BackgroundIsolation',1000,0)
+    dark=node('ShaderNodeBsdfDiffuse','BCGI_NoIndirectEmission',1000,-150); dark.inputs['Color'].default_value=(0,0,0,1)
+    isolate=node('ShaderNodeMixShader','BCGI_CameraOnlyGradient',1250,0)
+    for a,b in [(ray.outputs['Is Camera Ray'],isolate.inputs[0]),(dark.outputs[0],isolate.inputs[1]),(emission.outputs[0],isolate.inputs[2]),(isolate.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)
 
 def make(context):
     p=context.scene.bcgi_labs
@@ -151,50 +213,7 @@ def make(context):
     for poly in mesh.polygons: poly.use_smooth=True
     mat=bpy.data.materials.new('BCGI_Infinite_Gradient'); mat.use_nodes=True
     mesh.materials.append(mat); root['gradient_material']=mat.name
-    tree=mat.node_tree; tree.nodes.clear()
-    def node(typ,name,x,y):
-        n=tree.nodes.new(typ); n.name=name; n.label=name.replace('BCGI_',''); n.location=(x,y); return n
-    tex=node('ShaderNodeTexCoord','BCGI_LocalCoordinates',-800,100); tex.object=root
-    center=node('ShaderNodeVectorMath','BCGI_GlowCenter',-600,100); center.operation='SUBTRACT'
-    spread=node('ShaderNodeVectorMath','BCGI_GlowSpread',-400,100); spread.operation='MULTIPLY'
-    length=node('ShaderNodeVectorMath','BCGI_Distance',-200,100); length.operation='LENGTH'
-    ramp=node('ShaderNodeValToRGB','BCGI_Gradient',0,100)
-    ramp.color_ramp.interpolation='EASE'
-    ramp.color_ramp.elements[0].position=0
-    ramp.color_ramp.elements[1].position=1
-    emission=node('ShaderNodeEmission','BCGI_Brightness',300,150)
-    diffuse=node('ShaderNodeBsdfDiffuse','BCGI_GroundShadows',300,-50)
-    diffuse.inputs['Roughness'].default_value=1
-    mix=node('ShaderNodeMixShader','BCGI_ShadowStrength',550,100)
-    output=node('ShaderNodeOutputMaterial','BCGI_Output',800,100)
-    scale=node('ShaderNodeVectorMath','BCGI_GridScale',-600,-200); scale.operation='SCALE'
-    axes=node('ShaderNodeSeparateXYZ','BCGI_GridAxes',-400,-200)
-    local_axes=node('ShaderNodeSeparateXYZ','BCGI_LocalAxes',-600,-650)
-    floor=node('ShaderNodeMath','BCGI_FloorOnly',-400,-650); floor.operation='LESS_THAN'; floor.inputs[1].default_value=.0001
-    for suffix,axis in [('X','X'),('Y','Y')]:
-        wave=node('ShaderNodeMath','BCGI_GridRepeat'+suffix,-200,-200 if axis=='X' else -400)
-        wave.operation='PINGPONG'; wave.inputs[1].default_value=.5
-        line=node('ShaderNodeMath','BCGI_GridLine'+suffix,0,-200 if axis=='X' else -400); line.operation='LESS_THAN'
-        tree.links.new(axes.outputs[axis],wave.inputs[0]); tree.links.new(wave.outputs[0],line.inputs[0])
-    maximum=node('ShaderNodeMath','BCGI_GridLines',200,-350); maximum.operation='MAXIMUM'
-    floor_mask=node('ShaderNodeMath','BCGI_GridFloor',350,-350); floor_mask.operation='MULTIPLY'
-    opacity=node('ShaderNodeMath','BCGI_GridOpacity',500,-350); opacity.operation='MULTIPLY'
-    color=node('ShaderNodeMixRGB','BCGI_GridColor',700,-250)
-    for a,b in [(tex.outputs['Object'],scale.inputs[0]),(scale.outputs[0],axes.inputs[0]),
-                (tex.outputs['Object'],local_axes.inputs[0]),(local_axes.outputs['Z'],floor.inputs[0]),
-                (tree.nodes['BCGI_GridLineX'].outputs[0],maximum.inputs[0]),(tree.nodes['BCGI_GridLineY'].outputs[0],maximum.inputs[1]),
-                (maximum.outputs[0],floor_mask.inputs[0]),(floor.outputs[0],floor_mask.inputs[1]),
-                (floor_mask.outputs[0],opacity.inputs[0]),(opacity.outputs[0],color.inputs[0]),(ramp.outputs['Color'],color.inputs[1])]:
-        tree.links.new(a,b)
-    for a,b in [(tex.outputs['Object'],center.inputs[0]),(center.outputs[0],spread.inputs[0]),
-                (spread.outputs[0],length.inputs[0]),(length.outputs['Value'],ramp.inputs[0]),
-                (color.outputs[0],emission.inputs['Color']),(color.outputs[0],diffuse.inputs['Color']),
-                (emission.outputs[0],mix.inputs[1]),(diffuse.outputs[0],mix.inputs[2]),(mix.outputs[0],output.inputs['Surface'])]:
-        tree.links.new(a,b)
-    ray=node('ShaderNodeLightPath','BCGI_BackgroundIsolation',1000,0)
-    dark=node('ShaderNodeBsdfDiffuse','BCGI_NoIndirectEmission',1000,-150); dark.inputs['Color'].default_value=(0,0,0,1)
-    isolate=node('ShaderNodeMixShader','BCGI_CameraOnlyGradient',1250,0)
-    for a,b in [(ray.outputs['Is Camera Ray'],isolate.inputs[0]),(dark.outputs[0],isolate.inputs[1]),(mix.outputs[0],isolate.inputs[2]),(isolate.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)
+    rebuild_gradient(root,mat)
     text=bpy.data.curves.new('BCGI_Floor_Brand','FONT'); text.align_x='CENTER'; text.size=.05
     brand=bpy.data.objects.new('BCGI_Floor_Brand',text); c.objects.link(brand); brand.parent=root
     brand.location=(0,-.32,.0003)
@@ -219,6 +238,13 @@ def make(context):
     world=bpy.data.worlds.new('BCGI_Infinity_Sky'); world.use_nodes=True
     sky=next(n for n in world.node_tree.nodes if n.type=='BACKGROUND'); sky.name='BCGI_Sky'
     tree=world.node_tree
+    coords=tree.nodes.new('ShaderNodeTexCoord')
+    center=tree.nodes.new('ShaderNodeVectorMath'); center.name='BCGI_SkyCenter'; center.operation='SUBTRACT'
+    spread=tree.nodes.new('ShaderNodeVectorMath'); spread.name='BCGI_SkySpread'; spread.operation='MULTIPLY'
+    length=tree.nodes.new('ShaderNodeVectorMath'); length.operation='LENGTH'
+    ramp=tree.nodes.new('ShaderNodeValToRGB'); ramp.name='BCGI_SkyGradient'; ramp.color_ramp.interpolation='EASE'
+    for a,b in [(coords.outputs['Window'],center.inputs[0]),(center.outputs[0],spread.inputs[0]),
+                (spread.outputs[0],length.inputs[0]),(length.outputs['Value'],ramp.inputs[0]),(ramp.outputs['Color'],sky.inputs['Color'])]: tree.links.new(a,b)
     path=tree.nodes.new('ShaderNodeLightPath'); dark=tree.nodes.new('ShaderNodeBackground'); dark.inputs['Strength'].default_value=0
     mix=tree.nodes.new('ShaderNodeMixShader'); output=next(n for n in tree.nodes if n.type=='OUTPUT_WORLD')
     for a,b in [(path.outputs['Is Camera Ray'],mix.inputs[0]),(dark.outputs[0],mix.inputs[1]),(sky.outputs[0],mix.inputs[2]),(mix.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)

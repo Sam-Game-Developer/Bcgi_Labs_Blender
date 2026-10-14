@@ -1,12 +1,12 @@
 # BCGI LABS for Blender
 
-**v0.3.1 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.3.2 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.3.1_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.3.2_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
 
@@ -22,6 +22,10 @@ Reusing this button updates the current studio without duplicating it.
   and yaw, including through a parent rig. Ground height stays fixed. It rebinds
   automatically when the active camera changes.
 - Color, glow position/spread, size, brightness and shadow controls update live.
+  Floor, backdrop and sky use the same camera-space gradient. Their base color
+  stays continuous regardless of surface orientation. Contact AO supplies local
+  grounding shadows without diffuse lighting producing a visible floor/wall boundary.
+  Background Light Power scales the shared gradient brightness.
 - **Background Light Power** controls lights linked to studio geometry.
 - Select the character mesh or armature, then **Add Lights for Selected Character**.
   **Character Light Power** controls that separate rig, linked to those meshes.
@@ -100,6 +104,7 @@ No restart was required in the verified session.
 ```text
 blender --background --factory-startup --python test_bcgi.py
 blender --background --factory-startup --python test_infinite_studio.py
+blender --background --factory-startup --python test_gradient_seam.py
 ```
 
 Tests create disposable scenes and render outputs. Source: `bcgi_labs/`.

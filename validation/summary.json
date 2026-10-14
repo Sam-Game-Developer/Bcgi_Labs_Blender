@@ -3,9 +3,11 @@
   "studio_preset_passes": 34,
   "native_asset_import_live": "PASS",
   "live_install": "PASS",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "original_scene_transforms_preserved": "PASS",
   "cold_restart": "NOT_RUN",
   "literal_mouse_drag_drop": "NOT_RUN",
-  "other_blender_versions": "NOT_RUN"
+  "other_blender_versions": "NOT_RUN",
+  "gradient_seam": "PASS",
+  "camera_movement_gradient": "PASS"
 }

@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 3, 1),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 3, 2),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -220,7 +220,7 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.3.1 · Build 20261014')
+        layout.label(text='Version 0.3.2 · Build 20261014')
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
         box.operator('bcgi.infinite_studio')
         box.prop(p,'infinity_enabled'); box.prop(p,'follow_camera')

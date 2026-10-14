@@ -1,0 +1,13 @@
+{
+  "version": [
+    0,
+    3,
+    2
+  ],
+  "same_studio_reused": true,
+  "camera_space_gradient": true,
+  "sky_gradient": true,
+  "objects_and_transforms_preserved": true,
+  "enabled": true,
+  "studio": "BCGI_Infinite_Studio_Control.003"
+}

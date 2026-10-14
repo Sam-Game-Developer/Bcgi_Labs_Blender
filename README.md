@@ -1,18 +1,50 @@
 # BCGI LABS for Blender
 
-**v0.5.3 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.6.0 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.5.3_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.6.0_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
 
-## Text, fonts and writing timing
+## Navy glass shelf · v0.6.0
 
-Under **Writing / Drawing Reveal**, enter **Text**, select a Windows font or
+The shelf now has only **Effects** and **Camera** tabs. Writing cards and the
+Writing sidebar panel are hidden; existing writing curves/animation and operators
+are retained. They can still be accessed through Blender operator search.
+
+Compact window icons at the top right replace the old text controls. In order:
+**Dock** cycles Top → Bottom → Right; **Float** detaches the shelf; **Minimize**
+collapses/restores; **Maximize** expands/restores within the viewport; **Close**
+closes. Hover shows tooltips. Drag the title bar to move and snap to an edge.
+The diagonal lower-right grip resizes width and height. Cards reflow/page as
+space changes. Minimum layout sizes prevent unusable controls. Placement and
+dimensions are stored with the scene and retained when saving the blend.
+
+**Appearance** on the shelf or **Glass Appearance** in the native sidebar controls
+glass tint/opacity, cyan accent, glow strength, gradient top/bottom and corner
+radius. Reset Appearance restores the defaults. Eight new transparent native
+3D preview renders sit over configurable gradients, without baked black squares.
+Rounded clipping applies to the actual preview images. The translucent shelf
+does not blur/refract the scene. Native setting popups/sidebar follow Blender's
+theme; no global theme change is made.
+
+The Camera tab provides Choose PNG, Use Built-in, Apply Overlay, visibility
+toggle and Edit Controls. The latter opens the full native camera/opacity/scale/
+position/fit controls. Camera overlay remains a viewport guide, excluded from
+final rendering.
+
+Appearance reset/save/reopen, transparent PNGs, live drawing and simulated event
+paths for docking, maximize/minimize, resize and close/reopen passed in Blender
+5.2.2 LTS. Literal manual mouse dragging, cold restart and another physical PC
+remain untested. Installation preserved the live scene's objects and transforms.
+
+## Legacy text, fonts and writing timing
+
+In legacy builds under **Writing / Drawing Reveal**, enter **Text**, select a Windows font or
 load a TTF/OTF using **Load Writing Font**, choose Chalk/Pen and click
 **Create / Update Writing Text**. The Windows default uses Segoe UI when
 available, with Blender's built-in font as fallback. A custom loaded font takes
@@ -42,8 +74,7 @@ saved blend; OS fonts are not bundled in the add-on ZIP/repository.
 Fresh-file generation, preserved text source/transform, Chalk/Pen assignment,
 speed/pause timing, linear holds, key replacement, preserved width animation,
 length-based timing, empty/full evaluated geometry and save/reopen passed in
-Blender 5.2.2 LTS on Windows. Icon-card appearance is a design proposal only;
-the installed shelf appearance remains unchanged in this release.
+Blender 5.2.2 LTS on Windows. The current shelf appearance is documented above.
 
 ## Persistent library shelf and stroke materials
 
@@ -146,7 +177,7 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
-## Grid, shape and scene controls in v0.5.3
+## Grid, shape and scene controls in v0.6.0
 
 - **Studio Floor** can be disabled independently. The procedural sky/cove stay
   active, while BCGI floor, grid and floor branding hide. Add your own road or
@@ -260,7 +291,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.5.3 add-on, including camera follow, grid and packed font settings.
+the installed v0.6.0 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text

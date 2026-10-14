@@ -1,0 +1,10 @@
+{
+  "dock_bounds": true,
+  "maximize_restore": true,
+  "minimize_restore": true,
+  "simulated_resize_and_persistence": true,
+  "two_tabs": true,
+  "outside_click_pass_through": true,
+  "close_reopen_cleanup": true,
+  "live_previews_loaded": true
+}

@@ -1,0 +1,9 @@
+{
+  "version": "0.6.0",
+  "effects_camera_only": "PASS",
+  "eight_transparent_previews": "PASS",
+  "appearance_reset": "PASS",
+  "appearance_save_reopen": "PASS",
+  "native_sidebar": "Blender theme",
+  "actual_scene_blur": "Not implemented"
+}

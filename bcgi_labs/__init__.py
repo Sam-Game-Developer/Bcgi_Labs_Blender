@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 5, 3),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 6, 0),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -50,6 +50,18 @@ class BCGISettings(PropertyGroup):
     shelf_dock: EnumProperty(name='Library Placement',items=[('TOP','Top',''),('BOTTOM','Bottom',''),('RIGHT','Right',''),('FLOAT','Floating','')],default='TOP')
     shelf_x: FloatProperty(default=24)
     shelf_y: FloatProperty(default=80)
+    shelf_width: FloatProperty(name='Shelf Width',default=1120,min=280,max=4000,update=shelf.redraw)
+    shelf_height: FloatProperty(name='Shelf Height',default=230,min=220,max=2500,update=shelf.redraw)
+    shelf_right_width: FloatProperty(default=370,min=280,max=4000)
+    shelf_right_height: FloatProperty(default=340,min=220,max=2500)
+    shelf_tab: EnumProperty(name='Library',items=[('EFFECTS','Effects',''),('CAMERA','Camera','')],default='EFFECTS')
+    glass_opacity: FloatProperty(name='Glass Opacity',default=.86,min=.3,max=1,update=shelf.redraw)
+    glass_tint: FloatVectorProperty(name='Glass Tint',subtype='COLOR',size=3,min=0,max=1,default=(.025,.07,.12),update=shelf.redraw)
+    glass_accent: FloatVectorProperty(name='Accent / Glow Color',subtype='COLOR',size=3,min=0,max=1,default=(.02,.72,1),update=shelf.redraw)
+    glass_glow: FloatProperty(name='Glow Strength',default=.6,min=0,max=1,update=shelf.redraw)
+    card_top: FloatVectorProperty(name='Gradient Top',subtype='COLOR',size=3,min=0,max=1,default=(.05,.6,.95),update=shelf.redraw)
+    card_bottom: FloatVectorProperty(name='Gradient Bottom',subtype='COLOR',size=3,min=0,max=1,default=(.015,.20,.62),update=shelf.redraw)
+    card_radius: FloatProperty(name='Corner Radius',default=14,min=0,max=28,update=shelf.redraw)
     overlay_camera: PointerProperty(name='Camera',type=bpy.types.Object,poll=camera_overlay.camera_poll)
     overlay_image: PointerProperty(name='Custom Image',type=bpy.types.Image)
     overlay_enabled: BoolProperty(name='Show Overlay',default=True,update=camera_overlay.update)
@@ -257,8 +269,9 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.5.3 · Build 20261014')
+        layout.label(text='Version 0.6.0 · Build 20261014')
         layout.operator('bcgi.top_library',text='Open Top Preset Library')
+        box=layout.box(); box.label(text='Glass Appearance',icon='SHADING_RENDERED'); shelf.appearance(box,p)
         camera_overlay.draw(layout,p)
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
         box.operator('bcgi.infinite_studio')
@@ -294,20 +307,6 @@ class BCGI_PT_panel(Panel):
         box.prop(p,'count'); box.prop(p,'seed'); box.prop(p,'scale')
         box.operator('bcgi.effect',text='Add Scatter / Spark Field').kind='SCATTER'
         box.prop(p,'wave'); box.operator('bcgi.effect',text='Add Animated Wave').kind='WAVE'
-        box=layout.box(); box.label(text='Writing / Drawing Reveal',icon='CURVE_BEZCURVE')
-        box.prop(p,'writing_text'); box.prop(p,'writing_text_size')
-        box.prop(p,'writing_windows_font'); box.prop(p,'writing_font'); box.operator('bcgi.writing_font')
-        box.operator('bcgi.text_writing'); box.prop(p,'writing_source')
-        box.label(text='Fonts reveal outlines; drawn curves reveal strokes')
-        box.prop(p,'writing_style'); box.operator('bcgi.sample_writing')
-        box.operator('bcgi.apply_writing'); box.prop(p,'writing_target')
-        box.template_ID(p,'writing_material')
-        box.operator('bcgi.default_writing_material')
-        for prop in ('writing_color','writing_width','writing_roughness','writing_start','writing_duration'): box.prop(p,prop)
-        for prop in ('writing_speed','writing_pause','writing_timing'): box.prop(p,prop)
-        box.operator('bcgi.animate_writing',text='Apply / Update Writing Timing')
-        box.prop(p,'writing_progress'); box.operator('bcgi.keyframe_writing')
-        box.label(text='Animate Progress 0 → 1 in Modifiers')
         layout.label(text='FX controls: Modifiers tab',icon='MODIFIER')
         layout.label(text='Wave needs a subdivided mesh')
         layout.label(text='Tools add separate BCGI collections')

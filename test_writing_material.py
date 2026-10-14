@@ -26,6 +26,7 @@ assert current().get('bcgi_writing_material')=='PEN'
 # Bounds remain accessible when the viewport is resized.
 class Region: width=900; height=650
 fake=type('ShelfState',(),{})(); fake.region=Region(); fake.minimized=False; fake.fx=10000; fake.fy=-10000
+fake.width=1120; fake.height=230; fake.right_width=370; fake.right_height=340; fake.maximized=False
 for mode in ('TOP','BOTTOM','RIGHT','FLOAT'):
     fake.dock=mode
     x,y,w,h=shelf.BCGI_OT_shelf.bounds(fake)

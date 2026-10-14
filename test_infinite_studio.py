@@ -44,7 +44,7 @@ bpy.ops.bcgi.infinite_studio()
 assert len(bpy.data.objects)==count
 mat=bpy.data.materials[studio['gradient_material']]
 p.glow_spread=.8
-assert abs(mat.node_tree.nodes['BCGI_GlowSpread'].inputs[1].default_value[0]-1.25)<1e-5
+assert abs(mat.node_tree.nodes['BCGI_GlowSpread'].inputs[1].default_value[0]-bpy.context.scene.render.resolution_x/bpy.context.scene.render.resolution_y/.8)<1e-5
 p.glow_spread=.45
 p.show_brand=True; p.brand_text='BCGI LABS'
 brand=next(o for o in studio.children if o.get('bcgi_floor_brand'))
@@ -61,7 +61,7 @@ scene.render.image_settings.file_format='PNG'; scene.render.filepath=str(root/'B
 bpy.ops.wm.save_as_mainfile(filepath=str(root/'BCGI_Infinite_Studio_demo.blend'))
 bpy.ops.render.render(write_still=True)
 p.grid_enabled=True; p.grid_spacing=.75; p.grid_width=.025; p.grid_color=(.015,.12,.24)
-assert abs(mat.node_tree.nodes['BCGI_GridScale'].inputs[3].default_value-10/.75)<1e-4
+assert abs(mat.node_tree.nodes['BCGI_GridScale'].inputs[3].default_value-1/.75)<1e-4
 assert mat.node_tree.nodes['BCGI_GridColor'].inputs[2].default_value[2]>.23
 scene.render.filepath=str(root/'BCGI_Infinite_Studio_grid_preview.png')
 bpy.ops.render.render(write_still=True)
@@ -130,6 +130,6 @@ try:
 except Exception as e:
     print('ASSET_IMPORT_CHECK',str(e))
     checks['asset_modifier_import']='NOT_RUN_BACKGROUND' if bpy.app.background else False
-(root/'verification_v0.3.1.json').write_text(json.dumps(checks,indent=2))
+(root/'verification_v0.4.0.json').write_text(json.dumps(checks,indent=2))
 print('BCGI_TEST',json.dumps(checks))
 assert all(v is True or v=='NOT_RUN_BACKGROUND' for v in checks.values()), checks

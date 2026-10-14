@@ -2,5 +2,6 @@
   "saved_file_reopen": true,
   "grid_settings_preserved": true,
   "branding_and_packed_font_preserved": true,
-  "camera_follow_after_reopen": true
+  "camera_follow_after_reopen": true,
+  "native_overlay_restored_after_reopen": true
 }

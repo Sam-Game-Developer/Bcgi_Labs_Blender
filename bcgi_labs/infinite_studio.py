@@ -1,9 +1,89 @@
 """Continuous blue cyclorama with editable procedural gradient and floor text."""
-import bpy, math, os
+import bpy, math, os, json
 from mathutils import Vector
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
 _windows_fonts=[]
+_overlay_snapshots={}
+
+def restore_overlays():
+    scene=bpy.context.scene
+    if not _overlay_snapshots and scene and scene.get('bcgi_grid_overlay_restore'):
+        saved=json.loads(scene['bcgi_grid_overlay_restore'])
+        spaces=[a.spaces.active for w in bpy.context.window_manager.windows for a in w.screen.areas if a.type=='VIEW_3D']
+        for space,values in zip(spaces,saved): _overlay_snapshots[space.as_pointer()]=(space,values)
+    for space,values in list(_overlay_snapshots.values()):
+        try:
+            for key,value in values.items(): setattr(space.overlay,key,value)
+        except ReferenceError: pass
+    _overlay_snapshots.clear()
+    if scene and 'bcgi_grid_overlay_restore' in scene: del scene['bcgi_grid_overlay_restore']
+
+def grid_overlays(p,context):
+    hide=p.infinity_enabled and p.floor_enabled and p.grid_enabled and p.hide_default_grid
+    if not hide:
+        restore_overlays(); return
+    if not context.window_manager: return
+    persisted=json.loads(context.scene.get('bcgi_grid_overlay_restore','[]'))
+    space_index=0
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type=='VIEW_3D':
+                space=area.spaces.active; key=space.as_pointer()
+                names=('show_floor','show_ortho_grid','show_axis_x','show_axis_y')
+                if key not in _overlay_snapshots:
+                    values=persisted[space_index] if space_index<len(persisted) else {name:getattr(space.overlay,name) for name in names if hasattr(space.overlay,name)}
+                    _overlay_snapshots[key]=(space,values)
+                for name in names:
+                    if hasattr(space.overlay,name): setattr(space.overlay,name,False)
+                space_index+=1
+    context.scene['bcgi_grid_overlay_restore']=json.dumps([values for space,values in _overlay_snapshots.values()])
+
+def shape_nodes(tree,spread,ramp,prefix):
+    if tree.nodes.get(prefix+'Root'): return
+    def new(typ,suffix):
+        n=tree.nodes.new(typ); n.name=prefix+suffix; return n
+    axes=new('ShaderNodeSeparateXYZ','Axes'); tree.links.new(spread.outputs[0],axes.inputs[0])
+    power=[]
+    for axis in ('X','Y'):
+        absolute=new('ShaderNodeMath','Abs'+axis); absolute.operation='ABSOLUTE'
+        powered=new('ShaderNodeMath','Power'+axis); powered.operation='POWER'
+        tree.links.new(axes.outputs[axis],absolute.inputs[0]); tree.links.new(absolute.outputs[0],powered.inputs[0]); power.append(powered)
+    add=new('ShaderNodeMath','Sum'); add.operation='ADD'
+    for i,n in enumerate(power): tree.links.new(n.outputs[0],add.inputs[i])
+    distance=new('ShaderNodeMath','Root'); distance.operation='POWER'; tree.links.new(add.outputs[0],distance.inputs[0])
+    feather=new('ShaderNodeMapRange','Feather'); feather.clamp=True; feather.interpolation_type='SMOOTHERSTEP'
+    tree.links.new(distance.outputs[0],feather.inputs['Value']); tree.links.new(feather.outputs['Result'],ramp.inputs[0])
+    ramp.color_ramp.interpolation='LINEAR'
+
+def update_shape(p,scene,nodes,prefix,spread):
+    if not nodes.get(prefix+'Root'): return
+    exponent=64 if p.glow_shape=='SQUARE' else 2+(1-p.glow_roundness)*14 if p.glow_shape=='ROUNDED' else 2
+    for axis in ('X','Y'): nodes[prefix+'Power'+axis].inputs[1].default_value=exponent
+    nodes[prefix+'Root'].inputs[1].default_value=1/exponent
+    nodes[prefix+'Feather'].inputs['From Min'].default_value=1-p.glow_feather
+    aspect=scene.render.resolution_x*scene.render.pixel_aspect_x/max(scene.render.resolution_y*scene.render.pixel_aspect_y,1)
+    stretch=1 if p.glow_shape=='CIRCLE' else p.glow_aspect
+    spread.inputs[1].default_value=(aspect/(p.glow_spread*stretch),1/p.glow_spread,0)
+
+def split_floor(root):
+    existing=bpy.data.objects.get(root.get('floor_object',''))
+    if existing: return existing
+    cove=next(o for o in root.children if o.type=='MESH' and o.name.startswith('BCGI_Gradient_Cyclorama'))
+    source=cove.data
+    vertices=[tuple(v.co) for v in source.vertices]
+    floor_faces=[]; wall_faces=[]
+    for poly in source.polygons:
+        target=floor_faces if all(abs(source.vertices[i].co.z)<1e-6 for i in poly.vertices) else wall_faces
+        target.append(tuple(poly.vertices))
+    walls=bpy.data.meshes.new('BCGI_Cove_Without_Floor'); walls.from_pydata(vertices,[],wall_faces); walls.update()
+    floor=bpy.data.meshes.new('BCGI_Independent_Floor'); floor.from_pydata(vertices,[],floor_faces); floor.update()
+    for m in source.materials: walls.materials.append(m); floor.materials.append(m)
+    for poly in walls.polygons: poly.use_smooth=True
+    cove.data=walls
+    obj=bpy.data.objects.new('BCGI_Studio_Floor',floor); cove.users_collection[0].objects.link(obj); obj.parent=root
+    root['floor_object']=obj.name
+    return obj
 
 def windows_fonts(self,context):
     global _windows_fonts
@@ -60,6 +140,12 @@ def follow(p,context,root):
 def update(self, context):
     root=self.studio_root
     if not root: return
+    grid_overlays(self,context)
+    if self.floor_enabled and self.grid_enabled and self.grid_glow>0:
+        from .presets import enable_glow
+        enable_glow(context.scene)
+    floor=bpy.data.objects.get(root.get('floor_object',''))
+    if floor: floor.hide_render=not self.floor_enabled; floor.hide_viewport=not self.floor_enabled
     root.scale=(self.studio_size,)*3
     follow(self,context,root)
     for c in root.users_collection:
@@ -74,6 +160,7 @@ def update(self, context):
             wn['BCGI_SkyGradient'].color_ramp.elements[1].color=(*self.studio_color,1)
             wn['BCGI_SkyCenter'].inputs[1].default_value=(.5+self.glow_x,.3+self.glow_height,0)
             wn['BCGI_SkySpread'].inputs[1].default_value=(1/self.glow_spread,1/self.glow_spread,0)
+            update_shape(self,context.scene,wn,'BCGI_SkyShape',wn['BCGI_SkySpread'])
         context.scene.world=world if self.infinity_enabled else self.original_world
     mat=bpy.data.materials.get(root.get('gradient_material',''))
     if mat:
@@ -82,17 +169,20 @@ def update(self, context):
         n['BCGI_Gradient'].color_ramp.elements[1].color=(*self.studio_color,1)
         n['BCGI_GlowCenter'].inputs[1].default_value=(.5+self.glow_x,.3+self.glow_height,0)
         n['BCGI_GlowSpread'].inputs[1].default_value=(1/self.glow_spread,1/self.glow_spread,0)
+        update_shape(self,context.scene,n,'BCGI_Shape',n['BCGI_GlowSpread'])
         n['BCGI_Brightness'].inputs['Strength'].default_value=self.studio_brightness*self.background_power
         n['BCGI_ShadowStrength'].inputs[0].default_value=self.shadow_strength
         if n.get('BCGI_ContactShadowMix'): n['BCGI_ContactShadowMix'].inputs[0].default_value=self.shadow_strength
-        n['BCGI_GridScale'].inputs[3].default_value=self.studio_size/self.grid_spacing
+        n['BCGI_GridScale'].inputs[3].default_value=1/self.grid_spacing
         for name in ('BCGI_GridLineX','BCGI_GridLineY'):
             n[name].inputs[1].default_value=min(.45,self.grid_width/(2*self.grid_spacing))
-        n['BCGI_GridOpacity'].inputs[1].default_value=self.grid_opacity if self.grid_enabled else 0
+        n['BCGI_GridOpacity'].inputs[1].default_value=self.grid_opacity if self.grid_enabled and self.floor_enabled else 0
         n['BCGI_GridColor'].inputs[2].default_value=(*self.grid_color,1)
+        n['BCGI_GridGlowStrength'].inputs[1].default_value=self.grid_glow
+        n['BCGI_GridGlow'].inputs['Color'].default_value=(*self.grid_color,1)
     for o in root.children:
         if o.get('bcgi_floor_brand'):
-            visible=self.show_brand and self.brand_mode=='TEXT'
+            visible=self.floor_enabled and self.show_brand and self.brand_mode=='TEXT'
             o.hide_render=not visible
             o.hide_viewport=not visible
             o.data.body=self.brand_text
@@ -102,7 +192,7 @@ def update(self, context):
             o.rotation_euler.z=self.brand_rotation
             o.data.materials[0].node_tree.nodes['BCGI_BrandColor'].inputs['Color'].default_value=(*self.brand_color,1)
         if o.get('bcgi_floor_logo'):
-            visible=self.show_brand and self.brand_mode=='LOGO' and self.logo_image is not None
+            visible=self.floor_enabled and self.show_brand and self.brand_mode=='LOGO' and self.logo_image is not None
             o.hide_render=not visible; o.hide_viewport=not visible
             image=self.logo_image
             ratio=image.size[1]/max(image.size[0],1) if image else 1
@@ -123,6 +213,7 @@ def rebuild_gradient(root,mat):
     def node(typ,name,x,y):
         n=tree.nodes.new(typ); n.name=name; n.label=name.replace('BCGI_',''); n.location=(x,y); return n
     tex=node('ShaderNodeTexCoord','BCGI_LocalCoordinates',-800,100); tex.object=root
+    world_position=node('ShaderNodeNewGeometry','BCGI_WorldGridCoordinates',-800,-300)
     center=node('ShaderNodeVectorMath','BCGI_GlowCenter',-600,100); center.operation='SUBTRACT'
     spread=node('ShaderNodeVectorMath','BCGI_GlowSpread',-400,100); spread.operation='MULTIPLY'
     length=node('ShaderNodeVectorMath','BCGI_Distance',-200,100); length.operation='LENGTH'
@@ -148,7 +239,7 @@ def rebuild_gradient(root,mat):
     floor_mask=node('ShaderNodeMath','BCGI_GridFloor',350,-350); floor_mask.operation='MULTIPLY'
     opacity=node('ShaderNodeMath','BCGI_GridOpacity',500,-350); opacity.operation='MULTIPLY'
     color=node('ShaderNodeMixRGB','BCGI_GridColor',700,-250)
-    for a,b in [(tex.outputs['Object'],scale.inputs[0]),(scale.outputs[0],axes.inputs[0]),
+    for a,b in [(world_position.outputs['Position'],scale.inputs[0]),(scale.outputs[0],axes.inputs[0]),
                 (tex.outputs['Object'],local_axes.inputs[0]),(local_axes.outputs['Z'],floor.inputs[0]),
                 (tree.nodes['BCGI_GridLineX'].outputs[0],maximum.inputs[0]),(tree.nodes['BCGI_GridLineY'].outputs[0],maximum.inputs[1]),
                 (maximum.outputs[0],floor_mask.inputs[0]),(floor.outputs[0],floor_mask.inputs[1]),
@@ -159,6 +250,7 @@ def rebuild_gradient(root,mat):
                 (color.outputs[0],emission.inputs['Color']),(color.outputs[0],diffuse.inputs['Color']),
                 (emission.outputs[0],mix.inputs[1]),(diffuse.outputs[0],mix.inputs[2]),(mix.outputs[0],output.inputs['Surface'])]:
         tree.links.new(a,b)
+    shape_nodes(tree,spread,ramp,'BCGI_Shape')
     # One screen-space field for every camera-visible studio surface. Local AO
     # adds contact shading without making floor and wall respond differently to lights.
     ao=node('ShaderNodeAmbientOcclusion','BCGI_ContactAO',850,-400)
@@ -171,7 +263,12 @@ def rebuild_gradient(root,mat):
     ray=node('ShaderNodeLightPath','BCGI_BackgroundIsolation',1000,0)
     dark=node('ShaderNodeBsdfDiffuse','BCGI_NoIndirectEmission',1000,-150); dark.inputs['Color'].default_value=(0,0,0,1)
     isolate=node('ShaderNodeMixShader','BCGI_CameraOnlyGradient',1250,0)
-    for a,b in [(ray.outputs['Is Camera Ray'],isolate.inputs[0]),(dark.outputs[0],isolate.inputs[1]),(emission.outputs[0],isolate.inputs[2]),(isolate.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)
+    strength=node('ShaderNodeMath','BCGI_GridGlowStrength',1300,-500); strength.operation='MULTIPLY'
+    grid_glow=node('ShaderNodeEmission','BCGI_GridGlow',1500,-400)
+    add=node('ShaderNodeAddShader','BCGI_GridGlowAdd',1600,100)
+    for a,b in [(opacity.outputs[0],strength.inputs[0]),(strength.outputs[0],grid_glow.inputs['Strength']),
+                (grid_glow.outputs[0],add.inputs[0]),(emission.outputs[0],add.inputs[1]),
+                (ray.outputs['Is Camera Ray'],isolate.inputs[0]),(dark.outputs[0],isolate.inputs[1]),(add.outputs[0],isolate.inputs[2]),(isolate.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)
 
 def make(context):
     p=context.scene.bcgi_labs
@@ -213,6 +310,7 @@ def make(context):
     for poly in mesh.polygons: poly.use_smooth=True
     mat=bpy.data.materials.new('BCGI_Infinite_Gradient'); mat.use_nodes=True
     mesh.materials.append(mat); root['gradient_material']=mat.name
+    split_floor(root)
     rebuild_gradient(root,mat)
     text=bpy.data.curves.new('BCGI_Floor_Brand','FONT'); text.align_x='CENTER'; text.size=.05
     brand=bpy.data.objects.new('BCGI_Floor_Brand',text); c.objects.link(brand); brand.parent=root
@@ -245,6 +343,7 @@ def make(context):
     ramp=tree.nodes.new('ShaderNodeValToRGB'); ramp.name='BCGI_SkyGradient'; ramp.color_ramp.interpolation='EASE'
     for a,b in [(coords.outputs['Window'],center.inputs[0]),(center.outputs[0],spread.inputs[0]),
                 (spread.outputs[0],length.inputs[0]),(length.outputs['Value'],ramp.inputs[0]),(ramp.outputs['Color'],sky.inputs['Color'])]: tree.links.new(a,b)
+    shape_nodes(tree,spread,ramp,'BCGI_SkyShape')
     path=tree.nodes.new('ShaderNodeLightPath'); dark=tree.nodes.new('ShaderNodeBackground'); dark.inputs['Strength'].default_value=0
     mix=tree.nodes.new('ShaderNodeMixShader'); output=next(n for n in tree.nodes if n.type=='OUTPUT_WORLD')
     for a,b in [(path.outputs['Is Camera Ray'],mix.inputs[0]),(dark.outputs[0],mix.inputs[1]),(sky.outputs[0],mix.inputs[2]),(mix.outputs[0],output.inputs['Surface'])]: tree.links.new(a,b)
@@ -267,6 +366,58 @@ class BCGI_OT_infinite_studio(bpy.types.Operator):
     def execute(self,context):
         make(context)
         self.report({'INFO'},'Infinite studio ready. Controls update its appearance live.')
+        return {'FINISHED'}
+
+class BCGI_OT_center_glow(bpy.types.Operator):
+    bl_idname='bcgi.center_glow'; bl_label='Center Glow'; bl_options={'REGISTER','UNDO'}
+    def execute(self,context):
+        p=context.scene.bcgi_labs; p.glow_x=0; p.glow_height=.2
+        return {'FINISHED'}
+
+class BCGI_OT_center_studio(bpy.types.Operator):
+    bl_idname='bcgi.center_studio'; bl_label='Center Studio'; bl_options={'REGISTER','UNDO'}
+    def execute(self,context):
+        p=context.scene.bcgi_labs; root=p.studio_root
+        if not root:
+            self.report({'ERROR'},'Create an infinity studio first.'); return {'CANCELLED'}
+        active=context.active_object
+        target=active.matrix_world.translation if active and active.type=='MESH' and not active.name.startswith('BCGI_') else context.scene.camera.matrix_world.translation if context.scene.camera else context.scene.cursor.location
+        target=target.copy(); follow_enabled=p.follow_camera
+        p.follow_camera=False; root.location.x=target.x; root.location.y=target.y
+        p.follow_camera=follow_enabled
+        context.view_layer.update()
+        return {'FINISHED'}
+
+class BCGI_OT_center_scene(bpy.types.Operator):
+    bl_idname='bcgi.center_scene'; bl_label='Center Whole Scene'; bl_options={'REGISTER','UNDO'}
+    bl_description='Recenter visible content, camera rig and lights together, preserving their relative layout'
+    def execute(self,context):
+        context.view_layer.update()
+        scene=context.scene; p=scene.bcgi_labs
+        meshes=[o for o in scene.objects if o.type=='MESH' and not o.name.startswith('BCGI_') and o.visible_get()]
+        if meshes:
+            bounds=[o.matrix_world@Vector(v) for o in meshes for v in o.bound_box]
+            center=Vector(((min(v.x for v in bounds)+max(v.x for v in bounds))/2,
+                           (min(v.y for v in bounds)+max(v.y for v in bounds))/2,min(v.z for v in bounds)))
+        elif scene.camera:
+            center=scene.camera.matrix_world.translation.copy(); center.z=0
+        else: center=scene.cursor.location.copy()
+        group=next((o for o in scene.objects if o.get('bcgi_scene_center')),None)
+        if group is None:
+            group=bpy.data.objects.new('BCGI_Scene_Center',None); scene.collection.objects.link(group); group['bcgi_scene_center']=True
+        originals=[o for o in scene.objects if o!=group and o.parent is None and o.visible_get() and not o.get('bcgi_infinite_studio')]
+        for o in originals:
+            world=o.matrix_world.copy(); o.parent=group; o.matrix_world=world
+        group.location-=center
+        studio=p.studio_root
+        if studio:
+            if p.follow_camera and scene.camera:
+                # XY drivers already follow the translated camera; do not double-translate.
+                studio.location.z-=center.z
+            else: studio.location-=center
+        scene.cursor.location-=center
+        context.view_layer.update()
+        self.report({'INFO'},'Scene centered. Camera, object and light layout preserved. Undo restores the move.')
         return {'FINISHED'}
 
 class BCGI_OT_load_logo(bpy.types.Operator,ImportHelper):

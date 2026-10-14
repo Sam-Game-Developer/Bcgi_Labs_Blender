@@ -1,0 +1,13 @@
+{
+  "world_aligned_grid": true,
+  "grid_box_size": true,
+  "grid_glow": true,
+  "four_shapes": true,
+  "feather": true,
+  "center_glow": true,
+  "center_studio": true,
+  "independent_floor_toggle": true,
+  "sky_stays_on": true,
+  "custom_road_preserved": true,
+  "rendered_previews": true
+}

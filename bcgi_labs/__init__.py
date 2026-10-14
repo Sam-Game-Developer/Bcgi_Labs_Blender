@@ -1,4 +1,4 @@
-bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 3, 2),
+bl_info = {'name': 'BCGI LABS', 'author': 'BCGI LABS', 'version': (0, 4, 1),
            'blender': (4, 2, 0), 'location': '3D View > Sidebar > BCGI LABS',
            'description': 'Studio lighting, backgrounds and procedural effects', 'category': '3D View'}
 
@@ -46,6 +46,13 @@ def material(name, color, emission=False):
     return m
 
 class BCGISettings(PropertyGroup):
+    floor_enabled: BoolProperty(name='Studio Floor',default=True,update=infinite_studio.update)
+    glow_shape: EnumProperty(name='Glow Shape',items=[('CIRCLE','Circle',''),('OVAL','Oval',''),('SQUARE','Square',''),('ROUNDED','Rounded Square','')],update=infinite_studio.update)
+    glow_feather: FloatProperty(name='Glow Feather',default=1,min=.01,max=1,update=infinite_studio.update)
+    glow_aspect: FloatProperty(name='Glow Aspect Ratio',default=1.5,min=.1,max=10,update=infinite_studio.update)
+    glow_roundness: FloatProperty(name='Corner Roundness',default=.5,min=0,max=1,update=infinite_studio.update)
+    grid_glow: FloatProperty(name='Grid Glow Strength',default=0,min=0,max=20,update=infinite_studio.update)
+    hide_default_grid: BoolProperty(name='Hide Viewport Grid',default=True,update=infinite_studio.update)
     background_power: FloatProperty(name='Background Light Power',default=1,min=0,max=20,update=infinite_studio.update)
     character_power: FloatProperty(name='Character Light Power',default=1,min=0,max=20,update=infinite_studio.update)
     character_root: PointerProperty(type=bpy.types.Object)
@@ -76,7 +83,7 @@ class BCGISettings(PropertyGroup):
     fx_preset: EnumProperty(name='Preset',items=[(x,x.title(),'') for x in ('WAVE','SCATTER','TWIST','PULSE','SCAN','GLOW','XRAY')])
     grid_enabled: BoolProperty(name='Floor Grid',default=False,update=infinite_studio.update)
     grid_color: FloatVectorProperty(name='Grid Color',subtype='COLOR',size=3,min=0,max=1,default=(.025,.10,.16),update=infinite_studio.update)
-    grid_spacing: FloatProperty(name='Grid Spacing',default=1,min=.01,max=100,subtype='DISTANCE',update=infinite_studio.update)
+    grid_spacing: FloatProperty(name='Grid Box Size',default=1,min=.01,max=100,subtype='DISTANCE',update=infinite_studio.update)
     grid_width: FloatProperty(name='Line Width',default=.015,min=.001,max=1,subtype='DISTANCE',update=infinite_studio.update)
     grid_opacity: FloatProperty(name='Grid Opacity',default=.65,min=0,max=1,update=infinite_studio.update)
     lighting: EnumProperty(name='Preset', items=[('SOFT','Soft Studio',''),('DRAMA','Dramatic',''),('NEON','Neon Cyan / Pink','')])
@@ -220,13 +227,18 @@ class BCGI_PT_panel(Panel):
         layout=self.layout; p=context.scene.bcgi_labs
         if _previews and 'brand' in _previews:
             layout.template_icon(icon_value=_previews['brand'].icon_id,scale=3)
-        layout.label(text='Version 0.3.2 · Build 20261014')
+        layout.label(text='Version 0.4.1 · Build 20261014')
         box=layout.box(); box.label(text='Infinite Gradient Studio',icon='WORLD')
         box.operator('bcgi.infinite_studio')
         box.prop(p,'infinity_enabled'); box.prop(p,'follow_camera')
+        box.prop(p,'floor_enabled')
+        box.operator('bcgi.center_scene')
         box.prop(p,'background_power')
         for prop in ('studio_size','studio_color','glow_color','glow_x','glow_height','glow_spread','studio_brightness','shadow_strength','show_brand'):
             box.prop(p,prop)
+        box.prop(p,'glow_shape'); box.prop(p,'glow_feather')
+        if p.glow_shape!='CIRCLE': box.prop(p,'glow_aspect')
+        if p.glow_shape=='ROUNDED': box.prop(p,'glow_roundness')
         if p.show_brand:
             box.prop(p,'brand_mode')
             if p.brand_mode=='TEXT':
@@ -236,7 +248,7 @@ class BCGI_PT_panel(Panel):
             for prop in ('brand_color','brand_x','brand_y','brand_rotation'): box.prop(p,prop)
         box.prop(p,'grid_enabled')
         if p.grid_enabled:
-            for prop in ('grid_color','grid_spacing','grid_width','grid_opacity'): box.prop(p,prop)
+            for prop in ('grid_color','grid_spacing','grid_width','grid_opacity','grid_glow','hide_default_grid'): box.prop(p,prop)
         box=layout.box(); box.label(text='Studio Lighting',icon='LIGHT_AREA')
         box.prop(p,'character_power'); box.operator('bcgi.character_lights')
         box.prop(p,'lighting'); box.prop(p,'power'); box.operator('bcgi.lights')
@@ -254,7 +266,7 @@ class BCGI_PT_panel(Panel):
         layout.label(text='Wave needs a subdivided mesh')
         layout.label(text='Tools add separate BCGI collections')
 
-classes=(BCGISettings,BCGI_OT_lights,BCGI_OT_backdrop,BCGI_OT_effect,infinite_studio.BCGI_OT_infinite_studio,infinite_studio.BCGI_OT_load_logo,infinite_studio.BCGI_OT_load_font,infinite_studio.BCGI_OT_character_lights,presets.BCGI_OT_apply_preset,presets.BCGI_OT_keyframe_fx,presets.BCGI_OT_install_library,BCGI_PT_panel)
+classes=(BCGISettings,BCGI_OT_lights,BCGI_OT_backdrop,BCGI_OT_effect,infinite_studio.BCGI_OT_infinite_studio,infinite_studio.BCGI_OT_center_glow,infinite_studio.BCGI_OT_center_studio,infinite_studio.BCGI_OT_center_scene,infinite_studio.BCGI_OT_load_logo,infinite_studio.BCGI_OT_load_font,infinite_studio.BCGI_OT_character_lights,presets.BCGI_OT_apply_preset,presets.BCGI_OT_keyframe_fx,presets.BCGI_OT_install_library,BCGI_PT_panel)
 def register():
     global _previews
     for cls in classes: bpy.utils.register_class(cls)
@@ -267,6 +279,7 @@ def register():
 
 def unregister():
     global _previews
+    infinite_studio.restore_overlays()
     if infinite_studio.camera_changed in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.remove(infinite_studio.camera_changed)
     if _previews:

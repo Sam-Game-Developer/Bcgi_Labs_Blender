@@ -1,0 +1,15 @@
+{
+  "version": [
+    0,
+    4,
+    1
+  ],
+  "enabled": true,
+  "world_grid": true,
+  "viewport_overlap_fixed": true,
+  "viewport_overlay_restore": true,
+  "separate_floor": true,
+  "same_studio_reused": true,
+  "old_object_transforms_preserved": true,
+  "whole_scene_center_button": true
+}

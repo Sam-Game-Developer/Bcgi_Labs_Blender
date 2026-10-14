@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parent
 addon_utils.enable('bcgi_labs',default_set=False)
 import bcgi_labs
 assert '/scripts/addons/bcgi_labs/' in bcgi_labs.__file__.replace('\\','/'),bcgi_labs.__file__
-assert bcgi_labs.bl_info['version']==(0,3,2)
+assert bcgi_labs.bl_info['version']==(0,4,1)
 scene=bpy.context.scene
 assert scene.bcgi_labs.studio_root is None
 original={o.name:o.matrix_world.copy() for o in scene.objects}
@@ -23,7 +23,7 @@ mat=bpy.data.materials[studio['gradient_material']]
 assert any(l.from_socket.name=='Window' and l.to_node.name=='BCGI_GlowCenter' for l in mat.node_tree.links)
 assert bpy.data.worlds[studio['studio_world']].node_tree.nodes.get('BCGI_SkyGradient')
 p.grid_enabled=True; p.grid_spacing=.75
-assert abs(mat.node_tree.nodes['BCGI_GridScale'].inputs[3].default_value-p.studio_size/.75)<1e-4
+assert abs(mat.node_tree.nodes['BCGI_GridScale'].inputs[3].default_value-1/.75)<1e-4
 p.show_brand=True; p.brand_text='FRESH FILE TEST'
 brand=next(o for o in studio.children if o.get('bcgi_floor_brand'))
 assert brand.data.body=='FRESH FILE TEST' and not brand.hide_render

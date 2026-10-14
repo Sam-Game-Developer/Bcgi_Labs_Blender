@@ -1,0 +1,8 @@
+{
+  "whole_scene_center": true,
+  "camera_relative_layout": true,
+  "light_relative_layout": true,
+  "background_relative_layout": true,
+  "camera_rig_preserved": true,
+  "repeat_no_duplicate_roots": true
+}

@@ -1,12 +1,12 @@
 # BCGI LABS for Blender
 
-**v0.3.2 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
+**v0.4.1 · Build 20261014 · Tested in Blender 5.2.2 LTS on Windows**
 
 ![Infinity studio](docs/BCGI_Infinite_Studio_preview.png)
 
 ## Install
 
-Download [the add-on ZIP](dist/BCGI_LABS_v0.3.2_Build20261014.zip).
+Download [the add-on ZIP](dist/BCGI_LABS_v0.4.1_Build20261014.zip).
 Open **Edit → Preferences → Add-ons → Install from Disk**, select the ZIP,
 enable **BCGI LABS**, then open **3D View → N sidebar → BCGI LABS**.
 
@@ -60,6 +60,32 @@ user reference screenshots are not distributed here. Use material preview or
 rendered shading; enable Scene World and Scene Lights in material preview to
 evaluate the studio's actual sky and lighting. Solid shading hides materials.
 
+## Grid, shape and scene controls in v0.4.1
+
+- **Studio Floor** can be disabled independently. The procedural sky/cove stay
+  active, while BCGI floor, grid and floor branding hide. Add your own road or
+  mesh normally; its geometry/materials are not modified.
+- **Glow Shape:** Circle, Oval, Square and Rounded Square. Spread controls the
+  outer size; **Glow Feather** controls smooth blending. Aspect Ratio stretches
+  the non-circular shapes; Corner Roundness adjusts Rounded Square. Floor,
+  backdrop and sky use the same shape field. Circle accounts for render aspect.
+- The floor grid uses **world X/Y coordinates**, anchored at world origin. It
+  stays aligned with Blender's axes when the camera/studio moves or rotates.
+  Grid Box Size, Line Width, Color, Opacity and Glow Strength are adjustable.
+- **Hide Viewport Grid** temporarily hides Blender's floor/ortho grid and X/Y
+  axes while the BCGI grid is active. Turning it off restores the previous
+  viewport settings, including after save/reopen.
+- Grid Glow adds emission and enables a Fog Glow compositor for final-render
+  halos. High enough brightness is required to cross the glare threshold.
+- **Center Whole Scene** recenters visible non-BCGI mesh bounds in X/Y and
+  aligns their lowest point with Z=0. With no content mesh it centers the camera
+  horizontally. Camera rigs, visible lights and content move together under a
+  control Empty; existing child rig hierarchy stays intact. The active studio
+  follows the move without double-translating. Undo restores the operation.
+
+![Glowing world grid](docs/BCGI_World_Grid_Glow_preview.png)
+![Rounded feather](docs/BCGI_Rounded_Feather_preview.png)
+
 ## Preset library
 
 Seven Geometry Nodes modifier assets: **Wave, Scatter, Twist, Pulse, Scan, Glow,
@@ -100,7 +126,7 @@ The native scanner needs UI events, so import is `NOT_RUN_BACKGROUND` in the
 offline test and verified separately in live Blender. Literal mouse drag/drop,
 another PC and other Blender releases have not been tested. A factory-startup
 fresh file and its save/reopen in a separate Blender process were verified using
-the installed v0.3.2 add-on, including camera follow, grid and packed font settings.
+the installed v0.4.1 add-on, including camera follow, grid and packed font settings.
 No restart was required in the verified session.
 
 ```text
@@ -109,6 +135,8 @@ blender --background --factory-startup --python test_infinite_studio.py
 blender --background --factory-startup --python test_gradient_seam.py
 blender --background --factory-startup --python verify_fresh_file.py
 blender --background --factory-startup --python verify_fresh_reopen.py
+blender --background --factory-startup --python test_grid_shapes.py
+blender --background --factory-startup --python test_scene_center.py
 ```
 
 Tests create disposable scenes and render outputs. Source: `bcgi_labs/`.
